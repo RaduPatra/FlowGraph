@@ -129,12 +129,12 @@ public:
 	const FGameplayTagContainer& GetRecentlySentNotifyTags() const { return RecentlySentNotifyTags; }
 
 	// Send single notification from the actor to Flow graphs
-	// If set on server, it always going to be replicated to clients
+	// If set on server, it's always going to be replicated to clients
 	UFUNCTION(BlueprintCallable, Category = "Flow")
 	void NotifyGraph(const FGameplayTag NotifyTag, const EFlowNetMode NetMode = EFlowNetMode::Authority);
 
 	// Send multiple notifications at once - from the actor to Flow graphs
-	// If set on server, it always going to be replicated to clients
+	// If set on server, it's always going to be replicated to clients
 	UFUNCTION(BlueprintCallable, Category = "Flow")
 	void BulkNotifyGraph(const FGameplayTagContainer NotifyTags, const EFlowNetMode NetMode = EFlowNetMode::Authority);
 
@@ -204,15 +204,15 @@ public:
 
 	UPROPERTY(SaveGame)
 	FString SavedAssetInstanceName;
-	
+
 	// This will instantiate Flow Asset assigned on this component.
 	// Created Flow Asset instance will be a "root flow", as additional Flow Assets can be instantiated via Sub Graph node
 	UFUNCTION(BlueprintCallable, Category = "RootFlow")
-	void StartRootFlow();
+	virtual void StartRootFlow();
 
 	// This will destroy instantiated Flow Asset - created from asset assigned on this component.
 	UFUNCTION(BlueprintCallable, Category = "RootFlow")
-	void FinishRootFlow(UFlowAsset* TemplateAsset, const EFlowFinishPolicy FinishPolicy);
+	virtual void FinishRootFlow(UFlowAsset* TemplateAsset, const EFlowFinishPolicy FinishPolicy);
 
 	UFUNCTION(BlueprintPure, Category = "FlowSubsystem")
 	TSet<UFlowAsset*> GetRootInstances(const UObject* Owner) const;

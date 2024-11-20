@@ -14,8 +14,7 @@ class FLOW_API UFlowNode_Branch : public UFlowNode
 
 public:
 	// UFlowNodeBase
-	virtual EFlowAddOnAcceptResult
-	AcceptFlowNodeAddOnChild_Implementation(const UFlowNodeAddOn* AddOnTemplate) const override;
+	virtual EFlowAddOnAcceptResult AcceptFlowNodeAddOnChild_Implementation(const UFlowNodeAddOn* AddOnTemplate, const TArray<UFlowNodeAddOn*>& AdditionalAddOnsToAssumeAreChildren) const override;
 	// --
 
 	// Event reacting on triggering Input pin

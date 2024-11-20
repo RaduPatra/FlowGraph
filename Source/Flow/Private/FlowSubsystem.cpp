@@ -83,18 +83,21 @@ void UFlowSubsystem::StartRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const 
 	{
 		if (UFlowAsset* NewFlow = CreateRootFlow(Owner, FlowAsset, bAllowMultipleInstances))
 		{
+			// todo: (gtaylor) In the future, we may want to provide a way to set a data pin value supplier
+			// for the root flow graph.
 			NewFlow->StartFlow();
 		}
 	}
 #if WITH_EDITOR
 	else
 	{
-		FMessageLog("PIE").Error(LOCTEXT("StartRootFlowNullAsset", "Attempted to start Root Flow with a null asset."))->AddToken(FUObjectToken::Create(Owner));
+		FMessageLog("PIE").Error(LOCTEXT("StartRootFlowNullAsset", "Attempted to start Root Flow with a null asset."))
+		                  ->AddToken(FUObjectToken::Create(Owner));
 	}
 #endif
 }
 
-UFlowAsset* UFlowSubsystem::CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances, FString NewInstanceName, const bool bCanCreateFlowForSameOwner)
+UFlowAsset* UFlowSubsystem::CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances, const FString& NewInstanceName)
 {
 	if (!bCanCreateFlowForSameOwner)
 	{
@@ -186,7 +189,7 @@ void UFlowSubsystem::FinishAllRootFlows(UObject* Owner, const EFlowFinishPolicy 
 	}
 }
 
-UFlowAsset* UFlowSubsystem::CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString SavedInstanceName, const bool bPreloading /* = false */)
+UFlowAsset* UFlowSubsystem::CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString& SavedInstanceName, const bool bPreloading /* = false */)
 {
 	UFlowAsset* NewInstance = nullptr;
 
@@ -217,7 +220,7 @@ UFlowAsset* UFlowSubsystem::CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, cons
 		// don't activate Start Node if we're loading Sub Graph from SaveGame
 		if (SavedInstanceName.IsEmpty())
 		{
-			AssetInstance->StartFlow();
+			AssetInstance->StartFlow(SubGraphNode);
 		}
 	}
 
@@ -272,7 +275,7 @@ UFlowAsset* UFlowSubsystem::CreateInjectedSubFlow(UFlowNode_InjectSubgraph* SubG
 		// don't activate Start Node if we're loading Sub Graph from SaveGame
 		if (SavedInstanceName.IsEmpty())
 		{
-			AssetInstance->StartFlow();
+			AssetInstance->StartFlow(SubGraphNode);
 		}
 	}
 
@@ -469,7 +472,8 @@ void UFlowSubsystem::LoadRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const F
 
 	for (const FFlowAssetSaveData& AssetRecord : LoadedSaveGame->FlowInstances)
 	{
-		if (AssetRecord.InstanceName == SavedAssetInstanceName && (FlowAsset->IsBoundToWorld() == false || AssetRecord.WorldName == GetWorld()->GetName()))
+		if (AssetRecord.InstanceName == SavedAssetInstanceName
+			&& (FlowAsset->IsBoundToWorld() == false || AssetRecord.WorldName == GetWorld()->GetName()))
 		{
 			UFlowAsset* LoadedInstance = CreateRootFlow(Owner, FlowAsset, false);
 			if (LoadedInstance)
@@ -492,7 +496,8 @@ void UFlowSubsystem::LoadSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString
 
 	for (const FFlowAssetSaveData& AssetRecord : LoadedSaveGame->FlowInstances)
 	{
-		if (AssetRecord.InstanceName == SavedAssetInstanceName && ((SubGraphAsset && SubGraphAsset->IsBoundToWorld() == false) || AssetRecord.WorldName == GetWorld()->GetName()))
+		if (AssetRecord.InstanceName == SavedAssetInstanceName
+			&& ((SubGraphAsset && SubGraphAsset->IsBoundToWorld() == false) || AssetRecord.WorldName == GetWorld()->GetName()))
 		{
 			UFlowAsset* LoadedInstance = CreateSubFlow(SubGraphNode, SavedAssetInstanceName);
 			if (LoadedInstance)
