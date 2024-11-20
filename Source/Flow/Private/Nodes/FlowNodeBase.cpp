@@ -195,6 +195,10 @@ TArray<FFlowPin> UFlowNodeBase::GetContextInputs() const
 
 	for (const UFlowNodeAddOn* AddOn : AddOns)
 	{
+		if (!AddOn)
+		{
+			continue;
+		}
 		AddOnInputs.Append(AddOn->GetContextInputs());
 	}
 
@@ -231,7 +235,7 @@ TArray<FFlowPin> UFlowNodeBase::GetContextOutputs() const
 }
 #endif // WITH_EDITOR
 
-UFlowAsset* UFlowNodeBase::GetFlowAsset() const
+UFlowAsset* UFlowNodeBase::GetFlowAsset() const //this should be the instance of the flow template
 {
 	// In the case of an AddOn, we want our containing FlowNode's Outer, not our own
 	const UFlowNode* FlowNode = GetFlowNodeSelfOrOwner();
@@ -387,8 +391,7 @@ EFlowAddOnAcceptResult UFlowNodeBase::CheckAcceptFlowNodeAddOnChild(const UFlowN
 	// FlowNodeAddOns are allowed to opt in to their parent
 	const EFlowAddOnAcceptResult AsParentResult = AddOnTemplate->AcceptFlowNodeAddOnParent(this);
 
-	if (AsParentResult != EFlowAddOnAcceptResult::Reject &&
-		AddOnTemplate->IsA<UFlowNode>())
+	if (AsParentResult != EFlowAddOnAcceptResult::Reject && AddOnTemplate->IsA<UFlowNode>())
 	{
 		const FString Message = FString::Printf(TEXT("%s::AcceptFlowNodeAddOnParent must always Reject for UFlowNode subclasses"), *GetClass()->GetName());
 		GetFlowAsset()->GetTemplateAsset()->LogError(Message, this);
@@ -465,6 +468,11 @@ void UFlowNodeBase::ForEachAddOnForClass(const UClass& InterfaceOrClass, const F
 }
 
 #if WITH_EDITOR
+void UFlowNodeBase::BroadcastReconstructionRequested() const
+{
+	OnReconstructionRequested.ExecuteIfBound();
+}
+
 void UFlowNodeBase::SetGraphNode(UEdGraphNode* NewGraphNode)
 {
 	GraphNode = NewGraphNode;
@@ -584,7 +592,7 @@ FText UFlowNodeBase::GetNodeToolTip() const
 			return FText::FromString(BlueprintTitle);
 		}
 	}
-	
+
 
 	return GetClass()->GetToolTipText();
 }
@@ -597,13 +605,13 @@ FText UFlowNodeBase::GetNodeConfigText() const
 FText UFlowNodeBase::GetGeneratedDisplayName() const
 {
 	static const FName NAME_GeneratedDisplayName(TEXT("GeneratedDisplayName"));
-	
+
 	if (GetClass()->ClassGeneratedBy)
 	{
 		UClass* Class = Cast<UBlueprint>(GetClass()->ClassGeneratedBy)->GeneratedClass;
 		return Class->GetMetaDataText(NAME_GeneratedDisplayName);
 	}
-	
+
 	return GetClass()->GetMetaDataText(NAME_GeneratedDisplayName);
 }
 #endif // WITH_EDITOR

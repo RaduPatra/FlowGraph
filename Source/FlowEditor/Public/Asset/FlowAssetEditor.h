@@ -34,6 +34,7 @@ public:
 	static const FName RuntimeLogTab;
 	static const FName SearchTab;
 	static const FName ValidationLogTab;
+	static const FName ShowAdvancedAddOnsTab;
 	
 protected:
 	/** The Flow Asset being edited */
@@ -116,6 +117,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RuntimeLog(const FSpawnTabArgs& Args) const;
 	TSharedRef<SDockTab> SpawnTab_Search(const FSpawnTabArgs& Args) const;
 	TSharedRef<SDockTab> SpawnTab_ValidationLog(const FSpawnTabArgs& Args) const;
+	TSharedRef<SDockTab> SpawnTab_AdvancedAddons(const FSpawnTabArgs& Args) const;
 
 	void DoPresaveAssetUpdate();
 

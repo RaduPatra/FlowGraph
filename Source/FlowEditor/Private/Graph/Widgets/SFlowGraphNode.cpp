@@ -582,6 +582,7 @@ void SFlowGraphNode::UpdateErrorInfo()
 		if (FlowNodeBase->GetClass()->HasAnyClassFlags(CLASS_Deprecated) || FlowNodeBase->bNodeDeprecated)
 		{
 			ErrorMsg = FlowNodeBase->ReplacedBy ? FString::Printf(TEXT(" REPLACED BY: %s "), *FlowNodeBase->ReplacedBy->GetName()) : FString(TEXT(" DEPRECATED! "));
+			ErrorMsg += " " + FlowNodeBase->DeprecatedDevMessage;
 			ErrorColor = FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor");
 			return;
 		}

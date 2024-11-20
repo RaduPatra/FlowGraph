@@ -26,7 +26,9 @@ public:
 
 	// IFlowPredicateInterface
 	virtual bool EvaluatePredicate_Implementation() const override;
+	virtual bool PreEvaluatePredicate_Implementation(FFlowContextData& Context) const override;
 	// --
 
 	static bool EvaluatePredicateOR(const TArray<UFlowNodeAddOn*>& AddOns);
+	static bool PreEvaluatePredicateOR(const TArray<UFlowNodeAddOn*>& AddOns, FFlowContextData& Context);
 };

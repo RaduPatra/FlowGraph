@@ -38,6 +38,7 @@ private:
 	static bool bFlowAssetsLoaded;
 
 public:
+	UFlowNodeBase* GetNodeInstance() const { return NodeInstance; }
 	// It would be intuitive to assign a custom Graph Node class in Flow Node class
 	// However, we shouldn't assign class from editor module to runtime module class
 	UPROPERTY()
@@ -227,7 +228,7 @@ public:
 	void SetParentNodeForSubNode(UFlowGraphNode* InParentNode);
 	UFlowGraphNode* GetParentNode() const { return ParentNode; }
 
-	void OnUpdateAsset(int32 UpdateFlags) { RebuildRuntimeAddOnsFromEditorSubNodes(); }
+	void OnUpdateAsset(int32 UpdateFlags);
 	void RebuildRuntimeAddOnsFromEditorSubNodes();
 
 	static void DiffSubNodes(

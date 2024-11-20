@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Nodes/Route/FlowNode_InjectSubgraph.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 

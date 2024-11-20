@@ -89,6 +89,15 @@ void UFlowNode_SubGraph::ForceFinishNode()
 	TriggerFirstOutput(true);
 }
 
+UFlowAsset* UFlowNode_SubGraph::PreInstanceSubFlow()
+{
+	if (CanBeAssetInstanced() && GetFlowSubsystem())
+	{
+		return GetFlowSubsystem()->CreateSubFlow(this);
+	}
+	return nullptr;
+}
+
 void UFlowNode_SubGraph::OnLoad_Implementation()
 {
 	if (!SavedAssetInstanceName.IsEmpty() && !Asset.IsNull())
@@ -126,8 +135,14 @@ TArray<FFlowPin> UFlowNode_SubGraph::GetContextInputs() const
 
 	if (!Asset.IsNull())
 	{
-		Asset.LoadSynchronous();
-		for (const FName& PinName : Asset.Get()->GetCustomInputs())
+		const UFlowAsset* LoadedAsset = Asset.LoadSynchronous();
+		if (!ensureAlways(LoadedAsset))
+		{
+			const FSoftObjectPath Path = Asset.ToSoftObjectPath();
+			UE_LOG(LogTemp, Warning, TEXT(" %s: Subgraph Asset did not load properly"), *Path.ToString());
+			return EventNames;
+		}
+		for (const FName& PinName : LoadedAsset->GetCustomInputs())
 		{
 			if (!PinName.IsNone())
 			{
@@ -145,8 +160,14 @@ TArray<FFlowPin> UFlowNode_SubGraph::GetContextOutputs() const
 
 	if (!Asset.IsNull())
 	{
-		Asset.LoadSynchronous();
-		for (const FName& PinName : Asset.Get()->GetCustomOutputs())
+		const UFlowAsset* LoadedAsset = Asset.LoadSynchronous();
+		if (!ensureAlways(LoadedAsset))
+		{
+			const FSoftObjectPath Path = Asset.ToSoftObjectPath();
+			UE_LOG(LogTemp, Warning, TEXT(" %s: Subgraph Asset did not load properly"), *Path.ToString());
+			return Pins;
+		}
+		for (const FName& PinName : LoadedAsset->GetCustomOutputs())
 		{
 			if (!PinName.IsNone())
 			{

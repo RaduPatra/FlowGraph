@@ -181,7 +181,7 @@ const FPinConnectionResponse UFlowGraphSchema::CanMergeNodes(const UEdGraphNode*
 	// Make sure the nodes are not the same 
 	if (NodeA == NodeB)
 	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Both are the same node"));
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Both are the same node 123"));
 	}
 
 	const UFlowGraphNode* FlowGraphNodeA = Cast<UFlowGraphNode>(NodeA);
@@ -799,6 +799,10 @@ void UFlowGraphSchema::AddAsset(const FAssetData& AssetData, const bool bBatch)
 
 bool UFlowGraphSchema::ShouldAddToBlueprintFlowNodesMap(const FAssetData& AssetData, const TSubclassOf<UBlueprint>& BlueprintClass, const TSubclassOf<UFlowNodeBase>& FlowNodeBaseClass)
 {
+	if (!IsValid(BlueprintClass))
+	{
+		return false;
+	}
 	if (!AssetData.GetClass()->IsChildOf(BlueprintClass))
 	{
 		return false;

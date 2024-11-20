@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "FlowAsset.h"
 #include "Nodes/FlowNode.h"
 #include "FlowNode_SubGraph.generated.h"
 
@@ -20,10 +21,7 @@ class FLOW_API UFlowNode_SubGraph : public UFlowNode
 	static FFlowPin StartPin;
 	static FFlowPin FinishPin;
 	
-private:
-	UPROPERTY(EditAnywhere, Category = "Graph")
-	TSoftObjectPtr<UFlowAsset> Asset;
-
+protected:
 	/*
 	 * Allow to create instance of the same Flow Asset as the asset containing this node
 	 * Enabling it may cause an infinite loop, if graph would keep creating copies of itself
@@ -34,7 +32,9 @@ private:
 	UPROPERTY(SaveGame)
 	FString SavedAssetInstanceName;
 
-protected:
+	UPROPERTY(EditAnywhere, Category = "Graph")
+	TSoftObjectPtr<UFlowAsset> Asset;
+
 	virtual bool CanBeAssetInstanced() const;
 	
 	virtual void PreloadContent() override;
@@ -45,6 +45,9 @@ protected:
 
 public:
 	virtual void ForceFinishNode() override;
+	UFlowAsset* GetAsset() const { return Asset.Get(); }
+	TSoftObjectPtr<UFlowAsset> GetSoftAsset() { return Asset; }
+	UFlowAsset* PreInstanceSubFlow();
 
 protected:
 	virtual void OnLoad_Implementation() override;

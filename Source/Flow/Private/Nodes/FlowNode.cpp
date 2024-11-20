@@ -409,6 +409,7 @@ void UFlowNode::RecursiveFindNodesByClass(UFlowNode* Node, const TSubclassOf<UFl
 void UFlowNode::TriggerPreload()
 {
 	bPreloaded = true;
+	GetFlowAsset()->PreloadedNodes.Add(this);
 	PreloadContent();
 }
 

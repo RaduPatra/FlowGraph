@@ -32,6 +32,11 @@ bool UFlowNodeAddOn_PredicateOR::EvaluatePredicate_Implementation() const
 	return EvaluatePredicateOR(AddOns);
 }
 
+bool UFlowNodeAddOn_PredicateOR::PreEvaluatePredicate_Implementation(FFlowContextData& Context) const
+{
+	return PreEvaluatePredicateOR(AddOns, Context);
+}
+
 bool UFlowNodeAddOn_PredicateOR::EvaluatePredicateOR(const TArray<UFlowNodeAddOn*>& AddOns)
 {
 	int32 FalseCount = 0;
@@ -43,6 +48,39 @@ bool UFlowNodeAddOn_PredicateOR::EvaluatePredicateOR(const TArray<UFlowNodeAddOn
 		{
 			const bool bResult = IFlowPredicateInterface::Execute_EvaluatePredicate(AddOn);
 
+			if (bResult)
+			{
+				return true;
+			}
+			else
+			{
+				++FalseCount;
+			}
+		}
+	}
+
+	if (FalseCount == 0)
+	{
+		// For parity with PredicateAND, the "no AddOns (that qualify)" case results in a "true" result
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
+bool UFlowNodeAddOn_PredicateOR::PreEvaluatePredicateOR(const TArray<UFlowNodeAddOn*>& AddOns, FFlowContextData& Context)
+{
+	int32 FalseCount = 0;
+	for (int Index = 0; Index < AddOns.Num(); ++Index)
+	{
+		const UFlowNodeAddOn* AddOn = AddOns[Index];
+
+		if (ImplementsInterfaceSafe(AddOn))
+		{
+			const bool bResult = Execute_PreEvaluatePredicate(AddOn, Context);
 			if (bResult)
 			{
 				return true;

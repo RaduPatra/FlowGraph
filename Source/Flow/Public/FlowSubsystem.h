@@ -9,6 +9,7 @@
 #include "FlowComponent.h"
 #include "FlowSubsystem.generated.h"
 
+class UFlowNode_InjectSubgraph;
 class UFlowAsset;
 class UFlowNode_SubGraph;
 
@@ -34,8 +35,9 @@ public:
 
 	friend class UFlowAsset;
 	friend class UFlowComponent;
+	friend class UArtemisFlowComponent;
 	friend class UFlowNode_SubGraph;
-
+	friend class UFlowNode_InjectSubgraph;
 private:
 	/* All asset templates with active instances */
 	UPROPERTY()
@@ -75,7 +77,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void StartRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances = true);
 
-	virtual UFlowAsset* CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances = true, FString NewInstanceName = FString());
+	virtual UFlowAsset* CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances = true, FString NewInstanceName = FString(), const bool bCanCreateFlowForSameOwner = false);
 
 	/* Finish Policy value is read by Flow Node
 	 * Nodes have opportunity to terminate themselves differently if Flow Graph has been aborted
@@ -83,17 +85,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void FinishRootFlow(UObject* Owner, UFlowAsset* TemplateAsset, const EFlowFinishPolicy FinishPolicy);
 
+	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
+	virtual bool FinishRootFlowInstance(UObject* Owner, UFlowAsset* Instance, const EFlowFinishPolicy FinishPolicy); //
+
 	/* Finish Policy value is read by Flow Node
 	 * Nodes have opportunity to terminate themselves differently if Flow Graph has been aborted
 	 * Example: Spawn node might despawn all actors if Flow Graph is aborted, not completed */
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void FinishAllRootFlows(UObject* Owner, const EFlowFinishPolicy FinishPolicy);
+	UFlowAsset* CreateInjectedSubFlow(UFlowNode_InjectSubgraph* SubGraphNode, const FString SavedInstanceName = FString(), const bool bPreloading = false);
+	UFlowAsset* CreateFlowInstance(const TWeakObjectPtr<UObject> Owner, TSoftObjectPtr<UFlowAsset> FlowAsset, FString NewInstanceName = FString());
 
 protected:
 	UFlowAsset* CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString SavedInstanceName = FString(), const bool bPreloading = false);
 	void RemoveSubFlow(UFlowNode_SubGraph* SubGraphNode, const EFlowFinishPolicy FinishPolicy);
 
-	UFlowAsset* CreateFlowInstance(const TWeakObjectPtr<UObject> Owner, TSoftObjectPtr<UFlowAsset> FlowAsset, FString NewInstanceName = FString());
 
 	virtual void AddInstancedTemplate(UFlowAsset* Template);
 	virtual void RemoveInstancedTemplate(UFlowAsset* Template);

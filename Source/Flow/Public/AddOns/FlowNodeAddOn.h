@@ -23,6 +23,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UFlowNode> FlowNode;
 
+	
+
 	// Input pins to add to the owning flow node
 	// If defined, ExecuteInput will only be executed for these inputs
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlowNodeAddOn")
@@ -33,6 +35,9 @@ protected:
 	TArray<FFlowPin> OutputPins;
 	
 public:
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFlowNodeBase> EditorFlowNode;
 	// UFlowNodeBase
 
 	// AddOns may opt in to be eligible for a given parent

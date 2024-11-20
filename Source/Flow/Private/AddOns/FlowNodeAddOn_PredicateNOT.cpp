@@ -61,3 +61,35 @@ bool UFlowNodeAddOn_PredicateNOT::EvaluatePredicate_Implementation() const
 
 	return bResult;
 }
+
+bool UFlowNodeAddOn_PredicateNOT::PreEvaluatePredicate_Implementation(FFlowContextData& Context) const
+{
+	if (AddOns.IsEmpty())
+	{
+		// For parity with PredicateAND, the "no AddOns (that qualify)" case results in a "true" result
+		return true;
+	}
+
+	if (AddOns.Num() > 1)
+	{
+		const FString Message = FString::Printf(TEXT("%s may only have a single predicate AddOn child"), *GetName());
+		UFlowNodeAddOn_PredicateNOT* MutableThis = const_cast<UFlowNodeAddOn_PredicateNOT*>(this);
+		MutableThis->LogError(Message);
+	}
+
+	UFlowNodeAddOn* SingleChildAddOn = AddOns[0];
+
+	if (!IFlowPredicateInterface::ImplementsInterfaceSafe(SingleChildAddOn))
+	{
+		const FString Message = FString::Printf(TEXT("%s requires a child AddOn that implements the IFlowPredicateInterface interface!"), *GetName());
+		UFlowNodeAddOn_PredicateNOT* MutableThis = const_cast<UFlowNodeAddOn_PredicateNOT*>(this);
+		MutableThis->LogError(Message);
+
+		// For parity with PredicateAND, the "no AddOns (that qualify)" case results in a "true" result
+		return true;
+	}
+
+	const bool bResult = !Execute_PreEvaluatePredicate(SingleChildAddOn, Context);
+
+	return bResult;
+}

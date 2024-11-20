@@ -7,15 +7,15 @@
 #include "FlowNode_Branch.generated.h"
 
 // FEvaluates its AddOns that implement the IFlowPredicateInterface to determine the output pin to trigger
-UCLASS(MinimalApi, NotBlueprintable, meta = (DisplayName = "Branch"))
-class UFlowNode_Branch : public UFlowNode
+UCLASS(NotBlueprintable, meta = (DisplayName = "Branch"))
+class FLOW_API UFlowNode_Branch : public UFlowNode
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	// UFlowNodeBase
-	virtual EFlowAddOnAcceptResult AcceptFlowNodeAddOnChild_Implementation(const UFlowNodeAddOn* AddOnTemplate) const override;
+	virtual EFlowAddOnAcceptResult
+	AcceptFlowNodeAddOnChild_Implementation(const UFlowNodeAddOn* AddOnTemplate) const override;
 	// --
 
 	// Event reacting on triggering Input pin

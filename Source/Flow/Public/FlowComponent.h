@@ -10,8 +10,19 @@
 #include "Interfaces/FlowOwnerInterface.h"
 #include "FlowComponent.generated.h"
 
+class UFlowInjectionTag;
 class UFlowAsset;
 class UFlowSubsystem;
+
+USTRUCT()
+struct FInjectedAssets
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<UFlowInjectionTag*, UFlowAsset*> InjectionAssets;
+};
+
 
 USTRUCT()
 struct FNotifyTagReplication
@@ -252,4 +263,11 @@ protected:
 public:
 	UFlowSubsystem* GetFlowSubsystem() const;
 	bool IsFlowNetMode(const EFlowNetMode NetMode) const;
+
+	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flow")
+	// TMap<UFlowInjectionTag*, UFlowAsset*> InjectionAssets; //could be default injected assets
+
+	UPROPERTY()
+	TMap<UFlowAsset*, FInjectedAssets> InjectionAssetsMap; //root instance, injected assets
+	
 };

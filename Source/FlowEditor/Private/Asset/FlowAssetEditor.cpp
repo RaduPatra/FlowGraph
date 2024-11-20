@@ -42,6 +42,7 @@ const FName FFlowAssetEditor::PaletteTab(TEXT("Palette"));
 const FName FFlowAssetEditor::RuntimeLogTab(TEXT("RuntimeLog"));
 const FName FFlowAssetEditor::SearchTab(TEXT("Search"));
 const FName FFlowAssetEditor::ValidationLogTab(TEXT("ValidationLog"));
+const FName FFlowAssetEditor::ShowAdvancedAddOnsTab(TEXT("AdvancedAddons"));
 
 FFlowAssetEditor::FFlowAssetEditor()
 	: FlowAsset(nullptr)
@@ -139,6 +140,11 @@ void FFlowAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 				.SetDisplayName(LOCTEXT("ValidationLog", "Validation Log"))
 				.SetGroup(WorkspaceMenuCategoryRef)
 				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+
+	/*InTabManager->RegisterTabSpawner(ShowAdvancedAddOnsTab, FOnSpawnTab::CreateSP(this, &FFlowAssetEditor::SpawnTab_AdvancedAddOns))
+				.SetDisplayName(LOCTEXT("AdvancedAddons", "Advanced Addons"))
+				.SetGroup(WorkspaceMenuCategoryRef)
+				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));*/
 }
 
 void FFlowAssetEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -291,6 +297,21 @@ TSharedRef<SDockTab> FFlowAssetEditor::SpawnTab_ValidationLog(const FSpawnTabArg
 		.Label(LOCTEXT("FlowValidationLogTitle", "Validation Log"))
 		[
 			ValidationLog.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FFlowAssetEditor::SpawnTab_AdvancedAddons(const FSpawnTabArgs& Args) const
+{
+	check(Args.GetTabId() == ShowAdvancedAddOnsTab);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("FlowSearchTitle", "Search"))
+		[
+			SNew(SBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FlowSearch")))
+			[
+				SearchBrowser.ToSharedRef()
+			]
 		];
 }
 
@@ -451,6 +472,9 @@ void FFlowAssetEditor::ValidateAsset_Internal()
 		ValidationLogListing->AddMessages(LogResults.Messages);
 	}
 	ValidationLogListing->OnDataChanged().Broadcast();
+
+	// https://github.com/MothCocoon/FlowGraph/pull/235/commits/b1d3483ba1f3cd0c72fbf61662ee8848e8c12f5a
+	FlowAsset->GetGraph()->NotifyGraphChanged();
 }
 
 void FFlowAssetEditor::ValidateAsset(FFlowMessageLog& MessageLog)

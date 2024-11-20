@@ -760,6 +760,7 @@ void UFlowAsset::TriggerInput(const FGuid& NodeGuid, const FName& PinName)
 		}
 
 		Node->TriggerInput(PinName);
+
 	}
 }
 

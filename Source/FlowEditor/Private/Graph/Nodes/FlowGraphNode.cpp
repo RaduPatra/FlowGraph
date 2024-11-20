@@ -370,8 +370,7 @@ void UFlowGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins)
 		// * The node has been flagged to not save orphaned pins
 		// * The pin has been flagged not be saved if orphaned
 		// * The pin is hidden
-		if (UEdGraphPin::AreOrphanPinsEnabled() && !bDisableOrphanPinSaving && OrphanedPinSaveMode == ESaveOrphanPinMode::SaveAll
-			&& !bMatched && !OldPin->bHidden && OldPin->ShouldSavePinIfOrphaned() && OldPin->LinkedTo.Num() > 0)
+		if (UEdGraphPin::AreOrphanPinsEnabled() && !bDisableOrphanPinSaving && OrphanedPinSaveMode == ESaveOrphanPinMode::SaveAll && !bMatched && !OldPin->bHidden && OldPin->ShouldSavePinIfOrphaned() && OldPin->LinkedTo.Num() > 0)
 		{
 			OldPin->bOrphanedPin = true;
 			OldPin->bNotConnectable = true;
@@ -452,12 +451,7 @@ void UFlowGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGra
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("FlowGraphNodeAddOns", LOCTEXT("NodeAddOnsMenuHeader", "AddOns"));
-			Section.AddSubMenu(
-				"AttachAddOn",
-				LOCTEXT("AttachAddOn", "Attach AddOn..."),
-				LOCTEXT("AttachAddOnTooltip", "Attaches an AddOn to the Node"),
-				FNewToolMenuDelegate::CreateUObject(this, &UFlowGraphNode::CreateAttachAddOnSubMenu, (UEdGraph*)Context->Graph)
-			);
+			Section.AddSubMenu("AttachAddOn", LOCTEXT("AttachAddOn", "Attach AddOn..."), LOCTEXT("AttachAddOnTooltip", "Attaches an AddOn to the Node"), FNewToolMenuDelegate::CreateUObject(this, &UFlowGraphNode::CreateAttachAddOnSubMenu, (UEdGraph*)Context->Graph));
 		}
 
 		{
@@ -542,11 +536,7 @@ void UFlowGraphNode::CreateAttachAddOnSubMenu(UToolMenu* Menu, UEdGraph* Graph) 
 {
 	UFlowGraphNode* MutableThis = const_cast<UFlowGraphNode*>(this);
 
-	TSharedRef<SGraphEditorActionMenuFlow> Widget =
-		SNew(SGraphEditorActionMenuFlow)
-		.GraphObj(Graph)
-		.GraphNode(MutableThis)
-		.AutoExpandActionMenu(true);
+	TSharedRef<SGraphEditorActionMenuFlow> Widget = SNew(SGraphEditorActionMenuFlow).GraphObj(Graph).GraphNode(MutableThis).AutoExpandActionMenu(true);
 
 	Menu->AddMenuEntry("Section", FToolMenuEntry::InitWidget("Widget", Widget, FText(), true));
 }
@@ -1015,15 +1005,15 @@ void UFlowGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextO
 
 					switch (PinRecords[i].ActivationType)
 					{
-						case EFlowPinActivationType::Default:
-							break;
-						case EFlowPinActivationType::Forced:
-							HoverTextOut.Append(FPinRecord::ForcedActivation);
-							break;
-						case EFlowPinActivationType::PassThrough:
-							HoverTextOut.Append(FPinRecord::PassThroughActivation);
-							break;
-						default: ;
+					case EFlowPinActivationType::Default:
+						break;
+					case EFlowPinActivationType::Forced:
+						HoverTextOut.Append(FPinRecord::ForcedActivation);
+						break;
+					case EFlowPinActivationType::PassThrough:
+						HoverTextOut.Append(FPinRecord::PassThroughActivation);
+						break;
+					default: ;
 					}
 				}
 			}
@@ -1105,13 +1095,13 @@ void UFlowGraphNode::ForcePinActivation(const FEdGraphPinReference PinReference)
 	{
 		switch (FoundPin->Direction)
 		{
-			case EGPD_Input:
-				InspectedNodeInstance->TriggerInput(FoundPin->PinName, EFlowPinActivationType::Forced);
-				break;
-			case EGPD_Output:
-				InspectedNodeInstance->TriggerOutput(FoundPin->PinName, false, EFlowPinActivationType::Forced);
-				break;
-			default: ;
+		case EGPD_Input:
+			InspectedNodeInstance->TriggerInput(FoundPin->PinName, EFlowPinActivationType::Forced);
+			break;
+		case EGPD_Output:
+			InspectedNodeInstance->TriggerOutput(FoundPin->PinName, false, EFlowPinActivationType::Forced);
+			break;
+		default: ;
 		}
 	}
 }
@@ -1176,7 +1166,7 @@ void UFlowGraphNode::PostEditUndo()
 	}
 }
 
-void UFlowGraphNode::LogError(const FString& MessageToLog, const UFlowNodeBase* FlowNodeBase)  const
+void UFlowGraphNode::LogError(const FString& MessageToLog, const UFlowNodeBase* FlowNodeBase) const
 {
 	if (UFlowGraph* FlowGraph = GetFlowGraph())
 	{
@@ -1287,6 +1277,18 @@ void UFlowGraphNode::SetParentNodeForSubNode(UFlowGraphNode* InParentNode)
 	}
 
 	ParentNode = InParentNode;
+
+	if (UFlowNodeAddOn* AddOnNodeInstance = Cast<UFlowNodeAddOn>(NodeInstance))
+	{
+		int k = 1;
+	}
+}
+
+void UFlowGraphNode::OnUpdateAsset(int32 UpdateFlags)
+{
+	RebuildRuntimeAddOnsFromEditorSubNodes();
+
+	int k = 1;
 }
 
 void UFlowGraphNode::RebuildRuntimeAddOnsFromEditorSubNodes()
@@ -1310,10 +1312,16 @@ void UFlowGraphNode::RebuildRuntimeAddOnsFromEditorSubNodes()
 			}
 
 			// Add the runtime AddOn to its runtime UFlowNode or UFlowNodeAddOn container
+			
 			UFlowNodeAddOn* AddOnSubNodeInstance = Cast<UFlowNodeAddOn>(SubNode->NodeInstance);
+			// AddOnSubNodeInstance->Rename(*AddOnSubNodeInstance->GetName(), NodeInstance, REN_DontCreateRedirectors | REN_DoNotDirty);
 			if (IsValid(AddOnSubNodeInstance))
 			{
 				NodeInstanceAddOns.AddUnique(AddOnSubNodeInstance);
+				if (SubNode->ParentNode)
+				{
+					AddOnSubNodeInstance->EditorFlowNode = SubNode->ParentNode->NodeInstance;
+				}
 			}
 			else
 			{
@@ -1366,11 +1374,7 @@ void UFlowGraphNode::FindDiffs(UEdGraphNode* OtherNode, FDiffResults& Results)
 	DiffSubNodes(LOCTEXT("AddOnDiffDisplayName", "AddOn"), SubNodes, OtherGraphNode->SubNodes, Results);
 }
 
-void UFlowGraphNode::DiffSubNodes(
-	const FText& NodeTypeDisplayName,
-	const TArray<UFlowGraphNode*>& LhsSubNodes,
-	const TArray<UFlowGraphNode*>& RhsSubNodes,
-	FDiffResults& Results)
+void UFlowGraphNode::DiffSubNodes(const FText& NodeTypeDisplayName, const TArray<UFlowGraphNode*>& LhsSubNodes, const TArray<UFlowGraphNode*>& RhsSubNodes, FDiffResults& Results)
 {
 	TArray<FGraphDiffControl::FNodeMatch> NodeMatches;
 	TSet<const UEdGraphNode*> MatchedRhsNodes;
@@ -1605,7 +1609,7 @@ bool UFlowGraphNode::CanAcceptSubNodeAsChild(const UFlowGraphNode& OtherSubNode,
 		{
 			*OutReasonString = TEXT("Cannot be a AddOn of one of our own AddOns");
 		}
-	
+
 		return false;
 	}
 

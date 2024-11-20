@@ -316,6 +316,7 @@ public:
 	virtual void InitializeInstance(const TWeakObjectPtr<UObject> InOwner, UFlowAsset* InTemplateAsset);
 	virtual void DeinitializeInstance();
 
+	UFUNCTION(BlueprintCallable, Category = "Flow")
 	UFlowAsset* GetTemplateAsset() const { return TemplateAsset; }
 
 	// Object that spawned Root Flow instance, i.e. World Settings or Player Controller
@@ -351,9 +352,9 @@ protected:
 	void TriggerCustomInput_FromSubGraph(UFlowNode_SubGraph* Node, const FName& EventName) const;
 	void TriggerCustomOutput(const FName& EventName);
 
-	void TriggerInput(const FGuid& NodeGuid, const FName& PinName);
+	virtual void TriggerInput(const FGuid& NodeGuid, const FName& PinName);
 
-	void FinishNode(UFlowNode* Node);
+	virtual void FinishNode(UFlowNode* Node);
 	void ResetNodes();
 
 public:

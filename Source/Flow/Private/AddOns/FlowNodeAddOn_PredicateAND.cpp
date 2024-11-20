@@ -51,3 +51,30 @@ bool UFlowNodeAddOn_PredicateAND::EvaluatePredicateAND(const TArray<UFlowNodeAdd
 
 	return true;
 }
+
+
+bool UFlowNodeAddOn_PredicateAND::PreEvaluatePredicateAND(const TArray<UFlowNodeAddOn*>& AddOns, FFlowContextData& Context)
+{
+	for (int Index = 0; Index < AddOns.Num(); ++Index)
+	{
+		const UFlowNodeAddOn* AddOn = AddOns[Index];
+
+		if (ImplementsInterfaceSafe(AddOn))
+		{
+			const bool bResult = Execute_PreEvaluatePredicate(AddOn, Context);
+			if (!bResult)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+
+
+bool UFlowNodeAddOn_PredicateAND::PreEvaluatePredicate_Implementation(FFlowContextData& Context) const
+{
+	return PreEvaluatePredicateAND(AddOns, Context);
+}

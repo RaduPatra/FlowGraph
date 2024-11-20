@@ -194,11 +194,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
 	TSubclassOf<UFlowNode> ReplacedBy;
 
+	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
+	FString DeprecatedDevMessage;
+
 	FFlowNodeEvent OnReconstructionRequested;
 	FFlowMessageLog ValidationLog;
 #endif // WITH_EDITORONLY_DATA
 
 public:
+	void BroadcastReconstructionRequested() const;
 	UEdGraphNode* GetGraphNode() const { return GraphNode; }
 
 #if WITH_EDITOR
@@ -220,7 +224,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 protected:
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
 	FString Category;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
@@ -232,7 +236,7 @@ protected:
 
 	// Optional developer-facing text to explain the configuration of this node when viewed in the editor
 	// may be authored or set procedurally via UpdateNodeConfigText and SetNodeConfigText
-	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "FlowNode")
+	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "FlowNode", meta = (MultiLine = true))
 	FText DevNodeConfigText;
 #endif // WITH_EDITORONLY_DATA
 
