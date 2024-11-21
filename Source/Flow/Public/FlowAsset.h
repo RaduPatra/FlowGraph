@@ -10,6 +10,7 @@
 #include "FlowMessageLog.h"
 #endif
 
+#include "Nodes/Route/FlowNode_NamedRerouteUsage.h"
 #include "UObject/ObjectKey.h"
 #include "FlowAsset.generated.h"
 
@@ -81,6 +82,7 @@ public:
 	friend class UFlowNode;
 	friend class UFlowNode_CustomOutput;
 	friend class UFlowNode_SubGraph;
+	friend class UFlowNode_NamedRerouteUsage;
 	friend class UFlowSubsystem;
 
 	friend class FFlowAssetDetails;
@@ -160,6 +162,12 @@ protected:
 private:
 	UPROPERTY()
 	TMap<FGuid, UFlowNode*> Nodes;
+	
+	//This function is necessary until I find a better way to update the usages that lost their declaration. 
+	void UpdateUsagesForDeletedDeclaration(const FGuid& DeclarationGuid) const;
+	// Necessary to update the usages in contexts where declarations and usages are copied together,
+	// and the declarations do not yet exist in the graph.
+	void UpdateNamedRerouteUsages(UFlowNode* NewNode) const;
 
 #if WITH_EDITORONLY_DATA
 protected:
@@ -244,7 +252,48 @@ public:
 			GetNodesInExecutionOrder_Recursive(FirstIteratedNode, IteratedNodes, OutNodes);
 		}
 	}
+	
+	/**
+	 * Find a declaration in the graph
+	 * @param NodeGuid The GUID of the declaration to find
+	 * @return nullptr if not found
+	 */
+	UFlowNode_NamedRerouteDeclaration* FindNamedRerouteDeclaration(const FGuid& NodeGuid) const
+	{
+		for (const TPair<FGuid, UFlowNode*>& NodePair : Nodes)
+		{
+			if (UFlowNode_NamedRerouteDeclaration* Declaration = Cast<UFlowNode_NamedRerouteDeclaration>(NodePair.Value))
+			{
+				if (Declaration && Declaration->GetGuid() == NodeGuid)
+				{
+					return Declaration;
+				}
+			}
+		}
+		return nullptr;
+	}
 
+	/**
+	 * Find all usages of a named reroute declaration in the whole graph.
+	 * @param NodeGuid The GUID of the declaration to find usages for
+	 * @return An array of found usages
+	 */
+	TArray<UFlowNode_NamedRerouteUsage*> FindNamedRerouteUsages(const FGuid& NodeGuid) const
+	{
+		TArray<UFlowNode_NamedRerouteUsage*> Usages;
+		for (const TPair<FGuid, UFlowNode*>& NodePair : Nodes)
+		{
+			if (UFlowNode_NamedRerouteUsage* Usage = Cast<UFlowNode_NamedRerouteUsage>(NodePair.Value))
+			{
+				if (Usage->GetLinkedDeclaration() && Usage->GetLinkedDeclaration()->GetGuid() == NodeGuid)
+				{
+					Usages.Add(Usage);
+				}
+			}
+		}
+		return Usages;
+	}
+	
 protected:
 	template <class T>
 	void GetNodesInExecutionOrder_Recursive(UFlowNode* Node, TSet<TObjectKey<UFlowNode>>& IteratedNodes, TArray<T*>& OutNodes)

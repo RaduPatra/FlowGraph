@@ -28,6 +28,7 @@
 #include "SourceCodeNavigation.h"
 #include "Textures/SlateIcon.h"
 #include "ToolMenuSection.h"
+#include "Nodes/Route/FlowNode_Reroute.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowGraphNode)
 
@@ -470,7 +471,14 @@ void UFlowGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGra
 				Section.AddMenuEntry(FlowGraphCommands.RemovePin);
 			}
 		}
-
+		{
+			FToolMenuSection& PinSection = Menu->AddSection("FlowGraphNamedReroutes", LOCTEXT("FlowGraphNamedReroutesMenuHeader", "Named Reroute Actions"));
+		
+			if (NodeInstance->IsA(UFlowNode_Reroute::StaticClass()))
+			{
+				PinSection.AddMenuEntry(FlowGraphCommands.ConvertRerouteToNamedReroute);
+			}
+		}
 		{
 			FToolMenuSection& Section = Menu->AddSection("FlowGraphPinBreakpoints", LOCTEXT("PinBreakpointsMenuHeader", "Pin Breakpoints"));
 			Section.AddMenuEntry(FlowGraphCommands.AddPinBreakpoint);
@@ -557,7 +565,31 @@ void UFlowGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGra
 				Section.AddMenuEntry(FlowGraphCommands.JumpToNodeDefinition);
 			}
 		}
+		
+		{
+			FToolMenuSection& NodeSection = Menu->AddSection("FlowGraphNodeNamedReroute", LOCTEXT("FlowGraphNodeNamedRerouteMenuHeader", "Named Reroute"));
 
+			if (NodeInstance)
+			{
+				// Add a 'Convert to Named Reroute' option to reroute nodes
+				if (NodeInstance->IsA(UFlowNode_Reroute::StaticClass()))
+				{
+					NodeSection.AddMenuEntry(FlowGraphCommands.ConvertRerouteToNamedReroute);
+				}
+
+				// Add Named Reroute selection & conversion to reroute nodes
+				if (NodeInstance->IsA(UFlowNode_NamedRerouteDeclaration::StaticClass()))
+				{
+					NodeSection.AddMenuEntry(FlowGraphCommands.SelectNamedRerouteUsages);
+					NodeSection.AddMenuEntry(FlowGraphCommands.ConvertNamedRerouteToReroute);
+				}
+				else if (NodeInstance->IsA(UFlowNode_NamedRerouteUsage::StaticClass()))
+				{
+					NodeSection.AddMenuEntry(FlowGraphCommands.SelectNamedRerouteDeclaration);
+				}
+			}
+		}
+		
 		{
 			FToolMenuSection& Section = Menu->AddSection("FlowGraphNodeOrganisation", LOCTEXT("NodeOrganisation", "Organisation"));
 			Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* SubMenu)

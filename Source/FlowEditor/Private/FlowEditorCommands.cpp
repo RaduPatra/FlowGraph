@@ -53,6 +53,11 @@ void FFlowGraphCommands::RegisterCommands()
 
 	UI_COMMAND(FocusViewport, "Focus Viewport", "Focus viewport on actor assigned to the node", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(JumpToNodeDefinition, "Jump to Node Definition", "Jump to the node definition", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(ConvertNamedRerouteToReroute, "Convert Named Reroute to Reroute", "Convers the selected named reroute declaration to a normal reroute node", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SelectNamedRerouteUsages, "Select Named Reroute Usages", "Selects all usages of this Named Reroute Declaration", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SelectNamedRerouteDeclaration, "Select Named Reroute Declaration", "Selects the associated Named Reroute Declaration matching this Named Reroute Usage", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ConvertRerouteToNamedReroute, "Convert Reroute to Named Reroute", "Convers the selected reroute node to a Named reroute pair (declaration & usage)", EUserInterfaceActionType::Button, FInputChord());
 }
 
 FFlowSpawnNodeCommands::FFlowSpawnNodeCommands()

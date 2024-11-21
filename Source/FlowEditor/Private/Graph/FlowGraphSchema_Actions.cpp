@@ -11,6 +11,7 @@
 #include "FlowAsset.h"
 #include "AddOns/FlowNodeAddOn.h"
 #include "Nodes/FlowNode.h"
+#include "Nodes/Route/FlowNode_NamedRerouteUsage.h"
 
 #include "EdGraph/EdGraph.h"
 #include "EdGraphNode_Comment.h"
@@ -269,6 +270,29 @@ UEdGraphNode* FFlowGraphSchemaAction_Paste::PerformAction(class UEdGraph* Parent
 	if (GEditor->PlayWorld == nullptr)
 	{
 		FFlowGraphUtils::GetFlowGraphEditor(ParentGraph)->PasteNodesHere(Location);
+	}
+
+	return nullptr;
+}
+
+/////////////////////////////////////////////////////
+// Named Reroute Node
+
+UEdGraphNode* FFlowGraphSchemaAction_NewNamedRerouteUsage::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /*= true*/)
+{
+	check(Declaration);
+
+	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "FlowGraphNewNamedRerouteUsage", "Flow Graph Editor: New Named Reroute Usage"));
+
+	if (UFlowGraphNode* NewGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
+		ParentGraph, FromPin, UFlowNode_NamedRerouteUsage::StaticClass(), Location, bSelectNewNode))
+	{
+		UFlowNode_NamedRerouteUsage* NewUsage = CastChecked<UFlowNode_NamedRerouteUsage>(NewGraphNode->GetFlowNodeBase());
+		NewUsage->RegisterLinkedDeclaration(Declaration);
+		ParentGraph->Modify(true);
+		ParentGraph->NotifyGraphChanged();
+
+		return NewGraphNode;
 	}
 
 	return nullptr;

@@ -112,6 +112,33 @@ struct FLOWEDITOR_API FFlowGraphSchemaAction_Paste : public FEdGraphSchemaAction
 	// --
 };
 
+/** Action to add a named reroute usage to the graph */
+USTRUCT()
+struct FLOWEDITOR_API FFlowGraphSchemaAction_NewNamedRerouteUsage : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	// Declaration that we want to add a usage of
+	UPROPERTY()
+	TObjectPtr<class UFlowNode_NamedRerouteDeclaration> Declaration = nullptr;
+
+	// Simple type info
+	static FName StaticGetTypeId() {static FName Type("FFlowGraphSchemaAction_NewNamedRerouteUsage"); return Type;}
+	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
+
+	FFlowGraphSchemaAction_NewNamedRerouteUsage() 
+		: FEdGraphSchemaAction()
+	{}
+
+	FFlowGraphSchemaAction_NewNamedRerouteUsage(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	{}
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
 /** Action to create new comment */
 USTRUCT()
 struct FLOWEDITOR_API FFlowGraphSchemaAction_NewComment : public FEdGraphSchemaAction

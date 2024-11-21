@@ -54,6 +54,13 @@ public:
 	TSharedPtr<FUICommandInfo> FocusViewport;
 	TSharedPtr<FUICommandInfo> JumpToNodeDefinition;
 
+	/** Named Reroute */
+
+	TSharedPtr<FUICommandInfo> ConvertNamedRerouteToReroute;
+	TSharedPtr<FUICommandInfo> SelectNamedRerouteUsages;
+	TSharedPtr<FUICommandInfo> SelectNamedRerouteDeclaration;
+	TSharedPtr<FUICommandInfo> ConvertRerouteToNamedReroute;
+
 	virtual void RegisterCommands() override;
 };
 

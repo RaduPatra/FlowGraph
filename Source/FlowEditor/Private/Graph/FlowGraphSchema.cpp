@@ -231,12 +231,14 @@ void UFlowGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuil
 {
 	GetFlowNodeActions(ActionMenuBuilder, EditedFlowAsset, CategoryName);
 	GetCommentAction(ActionMenuBuilder);
+	GetNamedRerouteActions(ActionMenuBuilder, EditedFlowAsset->GetGraph());
 }
 
 void UFlowGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
 	GetFlowNodeActions(ContextMenuBuilder, GetEditedAssetOrClassDefault(ContextMenuBuilder.CurrentGraph), FString());
 	GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
+	GetNamedRerouteActions(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
 
 	if (!ContextMenuBuilder.FromPin && FFlowGraphUtils::GetFlowGraphEditor(ContextMenuBuilder.CurrentGraph)->CanPasteNodes())
 	{
@@ -1165,6 +1167,28 @@ void UFlowGraphSchema::GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuild
 
 		const TSharedPtr<FFlowGraphSchemaAction_NewComment> NewAction(new FFlowGraphSchemaAction_NewComment(FText::GetEmpty(), MenuDescription, ToolTip, 0));
 		ActionMenuBuilder.AddAction(NewAction);
+	}
+}
+
+void UFlowGraphSchema::GetNamedRerouteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph)
+{
+	if (CurrentGraph)
+	{
+		for (UEdGraphNode* GraphNode : CurrentGraph->Nodes)
+		{
+			if (const auto* FlowGraphNode = Cast<UFlowGraphNode>(GraphNode))
+			{
+				if (auto Declaration = Cast<UFlowNode_NamedRerouteDeclaration>(FlowGraphNode->GetFlowNodeBase()))
+				{
+					static const FText Category = LOCTEXT("NamedRerouteCategory", "Named Reroutes");
+					const FText Name = FText::FromString(Declaration->NodeTitle.ToString());
+					const FText Tooltip = FText::Format(LOCTEXT("NamedRerouteTooltip", "Add a usage of {0} here"), Name);
+					TSharedPtr<FFlowGraphSchemaAction_NewNamedRerouteUsage> NewAction(new FFlowGraphSchemaAction_NewNamedRerouteUsage(Category, Name, Tooltip, 1 /* We want named reroutes to be on top */));
+					NewAction->Declaration = Declaration;
+					ActionMenuBuilder.AddAction(NewAction);
+				}
+			}
+		}
 	}
 }
 

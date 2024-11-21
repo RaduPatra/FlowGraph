@@ -22,6 +22,7 @@ UFlowGraphSettings::UFlowGraphSettings(const FObjectInitializer& ObjectInitializ
 	, FlowAssetCategoryName(LOCTEXT("FlowAssetCategory", "Flow"))
 	, DefaultFlowAssetClass(UFlowAsset::StaticClass())
 	, WorldAssetClass(UFlowAsset::StaticClass())
+	, NodesHiddenFromPalette({UFlowNode_NamedRerouteUsage::StaticClass()})
 	, bShowDefaultPinNames(false)
 	, ExecPinColorModifier(0.75f, 0.75f, 0.75f, 1.0f)
 	, NodeDescriptionBackground(FLinearColor(0.0625f, 0.0625f, 0.0625f, 1.0f))

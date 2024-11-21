@@ -64,7 +64,7 @@ public:
 	virtual void PrepareForCopying() override;
     // --
 	
-	void PostCopyNode();
+	virtual void PostCopyNode();
 
 private:
 	void SubscribeToExternalChanges();
