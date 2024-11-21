@@ -160,7 +160,7 @@ TArray<FFlowPin> UFlowNode_SubGraph::GetContextInputs() const
 		{
 			const FSoftObjectPath Path = Asset.ToSoftObjectPath();
 			UE_LOG(LogTemp, Warning, TEXT(" %s: Subgraph Asset did not load properly"), *Path.ToString());
-			return EventNames;
+			return ContextInputPins;
 		}
 		for (const FName& PinName : LoadedAsset->GetCustomInputs())
 		{
@@ -185,7 +185,7 @@ TArray<FFlowPin> UFlowNode_SubGraph::GetContextOutputs() const
 		{
 			const FSoftObjectPath Path = Asset.ToSoftObjectPath();
 			UE_LOG(LogTemp, Warning, TEXT(" %s: Subgraph Asset did not load properly"), *Path.ToString());
-			return Pins;
+			return ContextOutputPins;
 		}
 		for (const FName& PinName : LoadedAsset->GetCustomOutputs())
 		{
