@@ -43,10 +43,12 @@ protected:
 	virtual void PreloadContent() override;
 	virtual void FlushContent() override;
 
-	virtual void ExecuteInput(const FName& PinName) override;
+
 	virtual void Cleanup() override;
 
 public:
+	virtual void ExecuteInput(const FName& PinName) override;
+	
 	void SetAsset(const TSoftObjectPtr<UFlowAsset>& FlowAsset);
 	virtual void ForceFinishNode() override;
 	UFlowAsset* GetAsset() const { return Asset.Get(); }

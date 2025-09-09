@@ -295,10 +295,10 @@ public:
 // Editor
 
 #if WITH_EDITORONLY_DATA
-protected:
+public:
 	UPROPERTY()
 	TObjectPtr<UEdGraphNode> GraphNode;
-	
+protected:
 	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
 	uint8 bDisplayNodeTitleWithoutPrefix : 1;
 	
