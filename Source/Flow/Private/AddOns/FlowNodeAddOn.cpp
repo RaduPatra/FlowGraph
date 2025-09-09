@@ -1,6 +1,9 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
 
 #include "AddOns/FlowNodeAddOn.h"
+
+#include "FlowLogChannels.h"
+
 #include "Nodes/FlowNode.h"
 
 #include "Misc/RuntimeErrors.h"
@@ -70,6 +73,35 @@ UFlowNode* UFlowNodeAddOn::GetFlowNode() const
 	return FlowNode;
 }
 
+UFlowNode* UFlowNodeAddOn::FindOwningFlowNode() const
+{
+	UObject* OuterObject = GetOuter();
+	UFlowNode* ParentFlowNode = nullptr;
+
+	while (IsValid(OuterObject))
+	{
+		ParentFlowNode = Cast<UFlowNode>(OuterObject);
+		if (ParentFlowNode)
+		{
+			break;
+		}
+
+		OuterObject = OuterObject->GetOuter();
+	}
+
+	return ParentFlowNode;
+}
+
+int32 UFlowNodeAddOn::GetRandomSeed() const
+{
+	if (ensure(FlowNode))
+	{
+		return FlowNode->GetRandomSeed();
+	}
+
+	return 0;
+}
+
 bool UFlowNodeAddOn::IsSupportedInputPinName(const FName& PinName) const
 {
 	if (InputPins.IsEmpty())
@@ -89,33 +121,45 @@ bool UFlowNodeAddOn::IsSupportedInputPinName(const FName& PinName) const
 
 void UFlowNodeAddOn::CacheFlowNode()
 {
-	UObject* OuterObject = GetOuter();
-	while (IsValid(OuterObject))
-	{
-		FlowNode = Cast<UFlowNode>(OuterObject);
-		if (FlowNode)
-		{
-			break;
-		}
-
-		OuterObject = OuterObject->GetOuter();
-	}
-
+	FlowNode = FindOwningFlowNode();
+	
 	ensureAsRuntimeWarning(FlowNode);
 }
 
 #if WITH_EDITOR
-TArray<FFlowPin> UFlowNodeAddOn::GetContextInputs() const
+TArray<FFlowPin> UFlowNodeAddOn::GetPinsForContext(const TArray<FFlowPin>& Context) const
 {
 	TArray<FFlowPin> ContextPins = Super::GetContextInputs();
-	ContextPins.Append(InputPins);
+
+	ContextPins.Reserve(ContextPins.Num() + Context.Num());
+	
+	for (const FFlowPin& InputPin : Context)
+	{
+		if (InputPin.IsValid())
+		{
+			ContextPins.Add(InputPin);
+		}
+		else
+		{
+			UE_LOG(LogFlow, Warning, TEXT("Addon %s has invalid pins (name: None), you should clean these up."), *GetName());
+		}
+	}
+
 	return ContextPins;
+}
+
+TArray<FFlowPin> UFlowNodeAddOn::GetContextInputs() const
+{
+	return GetPinsForContext(InputPins);
 }
 
 TArray<FFlowPin> UFlowNodeAddOn::GetContextOutputs() const
 {
-	TArray<FFlowPin> ContextPins = Super::GetContextOutputs();
-	ContextPins.Append(OutputPins);
-	return ContextPins;
+	return GetPinsForContext(OutputPins);
+}
+
+void UFlowNodeAddOn::RequestReconstructionOnOwningFlowNode() const
+{
+	(void) OnAddOnRequestedParentReconstruction.ExecuteIfBound();	
 }
 #endif // WITH_EDITOR

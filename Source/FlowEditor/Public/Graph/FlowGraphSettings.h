@@ -18,7 +18,7 @@ struct FFlowNodeDisplayStyleConfig
 
 public:
 	FFlowNodeDisplayStyleConfig()
-		: TitleColor()
+		: TitleColor(FLinearColor::White)
 	{
 	}
 
@@ -58,6 +58,7 @@ UCLASS(Config = Editor, defaultconfig, meta = (DisplayName = "Flow Graph"))
 class FLOWEDITOR_API UFlowGraphSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
+
 	static UFlowGraphSettings* Get() { return StaticClass()->GetDefaultObject<UFlowGraphSettings>(); }
 
 	virtual void PostInitProperties() override;
@@ -94,8 +95,12 @@ class FLOWEDITOR_API UFlowGraphSettings : public UDeveloperSettings
 
 	/** Hide specific nodes from the Flow Palette without changing the source code.
 	* Requires restart after making a change. */
-	UPROPERTY(EditAnywhere, config, Category = "Nodes")
+	UPROPERTY(EditAnywhere, config, Category = "Nodes", meta = (ConfigRestartRequired = true))
 	TArray<TSubclassOf<class UFlowNode>> NodesHiddenFromPalette;
+
+	/** Allows anyone to override Flow Palette category for specific nodes without modifying source code.*/
+	UPROPERTY(EditAnywhere, config, Category = "Nodes")
+	TMap<TSubclassOf<class UFlowNode>, FString> OverridenNodeCategories;
 
 	/** Hide default pin names on simple nodes, reduces UI clutter */
 	UPROPERTY(EditAnywhere, config, Category = "Nodes")

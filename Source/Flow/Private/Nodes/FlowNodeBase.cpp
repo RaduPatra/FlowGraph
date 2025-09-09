@@ -8,6 +8,7 @@
 #include "FlowSubsystem.h"
 #include "FlowTypes.h"
 #include "Interfaces/FlowDataPinValueSupplierInterface.h"
+#include "Types/FlowArray.h"
 
 #include "Components/ActorComponent.h"
 #if WITH_EDITOR
@@ -30,13 +31,13 @@ using namespace EFlowForEachAddOnFunctionReturnValue_Classifiers;
 
 UFlowNodeBase::UFlowNodeBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, GraphNode(nullptr)
 #if WITH_EDITORONLY_DATA
+	, GraphNode(nullptr)
 	, bDisplayNodeTitleWithoutPrefix(true)
 	, bCanDelete(true)
 	, bCanDuplicate(true)
 	, bNodeDeprecated(false)
-	, NodeDisplayStyle(FlowNodeStyle::Base)
+	, NodeDisplayStyle(FlowNodeStyle::Node)
 	, NodeStyle(EFlowNodeStyle::Invalid)
 	, NodeColor(FLinearColor::Black)
 #endif
@@ -204,7 +205,7 @@ const FFlowPin* UFlowNodeBase::FindFlowPinByName(const FName& PinName, const TAr
 
 FFlowPin* UFlowNodeBase::FindFlowPinByName(const FName& PinName, TArray<FFlowPin>& FlowPins)
 {
-	return FlowPins.FindByPredicate([&PinName](FFlowPin& FlowPin)
+	return FlowPins.FindByPredicate([&PinName](const FFlowPin& FlowPin)
 	{
 		return FlowPin.PinName == PinName;
 	});
@@ -351,6 +352,28 @@ IFlowOwnerInterface* UFlowNodeBase::GetFlowOwnerInterface() const
 	return nullptr;
 }
 
+TArray<UFlowNodeBase*> UFlowNodeBase::BuildFlowNodeBaseAncestorChain(UFlowNodeBase& FromFlowNodeBase, bool bIncludeFromFlowNodeBase)
+{
+	TArray<UFlowNodeBase*> AncestorChain;
+
+	UFlowNodeBase* CurOuter = Cast<UFlowNodeBase>(FromFlowNodeBase.GetOuter());
+	while (IsValid(CurOuter))
+	{
+		AncestorChain.Add(CurOuter);
+
+		CurOuter = Cast<UFlowNodeBase>(CurOuter->GetOuter());
+	}
+
+	FlowArray::ReverseArray<UFlowNodeBase*, FDefaultAllocator>(AncestorChain);
+
+	if (bIncludeFromFlowNodeBase)
+	{
+		AncestorChain.Add(&FromFlowNodeBase);
+	}
+
+	return AncestorChain;
+}
+
 IFlowOwnerInterface* UFlowNodeBase::TryGetFlowOwnerInterfaceFromRootFlowOwner(UObject& RootFlowOwner, const UClass& ExpectedOwnerClass)
 {
 	const UClass* RootFlowOwnerClass = RootFlowOwner.GetClass();
@@ -441,7 +464,9 @@ EFlowAddOnAcceptResult UFlowNodeBase::CheckAcceptFlowNodeAddOnChild(
 }
 #endif // WITH_EDITOR
 
-EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnConst(const FConstFlowNodeAddOnFunction& Function) const
+EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnConst(
+	const FConstFlowNodeAddOnFunction& Function,
+	EFlowForEachAddOnChildRule AddOnChildRule) const
 {
 	FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnFunctionReturnValue, 3);
 
@@ -461,18 +486,24 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnConst(const FCon
 			break;
 		}
 
-		ReturnValue = AddOn->ForEachAddOnConst(Function);
-
-		if (!ShouldContinueForEach(ReturnValue))
+		FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnChildRule, 2);
+		if (AddOnChildRule == EFlowForEachAddOnChildRule::AllChildren)
 		{
-			break;
+			ReturnValue = AddOn->ForEachAddOnConst(Function);
+
+			if (!ShouldContinueForEach(ReturnValue))
+			{
+				break;
+			}
 		}
 	}
 
 	return ReturnValue;
 }
 
-EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOn(const FFlowNodeAddOnFunction& Function) const
+EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOn(
+	const FFlowNodeAddOnFunction& Function,
+	EFlowForEachAddOnChildRule AddOnChildRule) const
 {
 	FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnFunctionReturnValue, 3);
 
@@ -492,18 +523,25 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOn(const FFlowNode
 			break;
 		}
 
-		ReturnValue = AddOn->ForEachAddOn(Function);
-
-		if (!ShouldContinueForEach(ReturnValue))
+		FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnChildRule, 2);
+		if (AddOnChildRule == EFlowForEachAddOnChildRule::AllChildren)
 		{
-			break;
+			ReturnValue = AddOn->ForEachAddOn(Function);
+
+			if (!ShouldContinueForEach(ReturnValue))
+			{
+				break;
+			}
 		}
 	}
 
 	return ReturnValue;
 }
 
-EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClassConst(const UClass& InterfaceOrClass, const FConstFlowNodeAddOnFunction& Function) const
+EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClassConst(
+	const UClass& InterfaceOrClass,
+	const FConstFlowNodeAddOnFunction& Function,
+	EFlowForEachAddOnChildRule AddOnChildRule) const
 {
 	FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnFunctionReturnValue, 3);
 
@@ -516,9 +554,7 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClassConst(co
 			continue;
 		}
 
-		// InterfaceOrClass can either be the AddOn's UClass (or its superclass)
-		// or an interface (the UClass version) that its UClass implements 
-		if (AddOn->IsA(&InterfaceOrClass) || AddOn->GetClass()->ImplementsInterface(&InterfaceOrClass))
+		if (AddOn->IsClassOrImplementsInterface(InterfaceOrClass))
 		{
 			ReturnValue = Function(*AddOn);
 
@@ -528,18 +564,25 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClassConst(co
 			}
 		}
 
-		ReturnValue = AddOn->ForEachAddOnForClassConst(InterfaceOrClass, Function);
-
-		if (!ShouldContinueForEach(ReturnValue))
+		FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnChildRule, 2);
+		if (AddOnChildRule == EFlowForEachAddOnChildRule::AllChildren)
 		{
-			break;
+			ReturnValue = AddOn->ForEachAddOnForClassConst(InterfaceOrClass, Function);
+
+			if (!ShouldContinueForEach(ReturnValue))
+			{
+				break;
+			}
 		}
 	}
 
 	return ReturnValue;
 }
 
-EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClass(const UClass& InterfaceOrClass, const FFlowNodeAddOnFunction& Function) const
+EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClass(
+	const UClass& InterfaceOrClass,
+	const FFlowNodeAddOnFunction& Function,
+	EFlowForEachAddOnChildRule AddOnChildRule) const
 {
 	FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnFunctionReturnValue, 3);
 
@@ -552,9 +595,7 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClass(const U
 			continue;
 		}
 
-		// InterfaceOrClass can either be the AddOn's UClass (or its superclass)
-		// or an interface (the UClass version) that its UClass implements 
-		if (AddOn->IsA(&InterfaceOrClass) || AddOn->GetClass()->ImplementsInterface(&InterfaceOrClass))
+		if (AddOn->IsClassOrImplementsInterface(InterfaceOrClass))
 		{
 			ReturnValue = Function(*AddOn);
 
@@ -564,24 +605,27 @@ EFlowForEachAddOnFunctionReturnValue UFlowNodeBase::ForEachAddOnForClass(const U
 			}
 		}
 
-		ReturnValue = AddOn->ForEachAddOnForClass(InterfaceOrClass, Function);
-
-		if (!ShouldContinueForEach(ReturnValue))
+		FLOW_ASSERT_ENUM_MAX(EFlowForEachAddOnChildRule, 2);
+		if (AddOnChildRule == EFlowForEachAddOnChildRule::AllChildren)
 		{
-			break;
+			ReturnValue = AddOn->ForEachAddOnForClass(InterfaceOrClass, Function);
+
+			if (!ShouldContinueForEach(ReturnValue))
+			{
+				break;
+			}
 		}
 	}
 
 	return ReturnValue;
 }
 
+#if WITH_EDITOR
 void UFlowNodeBase::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITOR
 	EnsureNodeDisplayStyle();
-#endif
 }
 
 #if WITH_EDITOR
@@ -706,7 +750,6 @@ FText UFlowNodeBase::GetNodeToolTip() const
 		}
 	}
 
-
 	return GetClass()->GetToolTipText();
 }
 
@@ -718,20 +761,20 @@ FText UFlowNodeBase::GetNodeConfigText() const
 FText UFlowNodeBase::GetGeneratedDisplayName() const
 {
 	static const FName NAME_GeneratedDisplayName(TEXT("GeneratedDisplayName"));
-	
+
 	if (GetClass()->ClassGeneratedBy)
 	{
 		UClass* Class = Cast<UBlueprint>(GetClass()->ClassGeneratedBy)->GeneratedClass;
 		return Class->GetMetaDataText(NAME_GeneratedDisplayName);
 	}
-	
+
 	return GetClass()->GetMetaDataText(NAME_GeneratedDisplayName);
 }
 
 void UFlowNodeBase::EnsureNodeDisplayStyle()
 {
-	// todo: remove in Flow 2.1
-	
+	// todo: remove in Flow 2.2
+
 	// Backward compatibility update to convert NodeStyle to NodeDisplayStyle
 	FLOW_ASSERT_ENUM_MAX(EFlowNodeStyle, 7);
 
@@ -746,7 +789,7 @@ void UFlowNodeBase::EnsureNodeDisplayStyle()
 			break;
 		case EFlowNodeStyle::Default:
 			{
-				NodeDisplayStyle = FlowNodeStyle::Base;
+				NodeDisplayStyle = FlowNodeStyle::Default;
 			}
 			break;
 		case EFlowNodeStyle::InOut:
@@ -814,16 +857,21 @@ void UFlowNodeBase::LogError(FString Message, const EFlowOnScreenMessageType OnS
 		// OnScreen Message
 		if (OnScreenMessageType == EFlowOnScreenMessageType::Permanent)
 		{
-			if (GetWorld())
+			if (UWorld* World = GetWorld())
 			{
-				if (UViewportStatsSubsystem* StatsSubsystem = GetWorld()->GetSubsystem<UViewportStatsSubsystem>())
+				if (UViewportStatsSubsystem* StatsSubsystem = World->GetSubsystem<UViewportStatsSubsystem>())
 				{
-					StatsSubsystem->AddDisplayDelegate([this, Message](FText& OutText, FLinearColor& OutColor)
+					StatsSubsystem->AddDisplayDelegate([WeakThis = TWeakObjectPtr<const UFlowNodeBase>(this), Message](FText& OutText, FLinearColor& OutColor)
 					{
-						OutText = FText::FromString(Message);
-						OutColor = FLinearColor::Red;
+						const UFlowNodeBase* ThisPtr = WeakThis.Get();
+						if (ThisPtr && ThisPtr->GetFlowNodeSelfOrOwner()->GetActivationState() != EFlowNodeState::NeverActivated)
+						{
+							OutText = FText::FromString(Message);
+							OutColor = FLinearColor::Red;
+							return true;
+						}
 
-						return IsValid(this) && GetFlowNodeSelfOrOwner()->GetActivationState() != EFlowNodeState::NeverActivated;
+						return false;
 					});
 				}
 			}
@@ -836,9 +884,12 @@ void UFlowNodeBase::LogError(FString Message, const EFlowOnScreenMessageType OnS
 		// Output Log
 		UE_LOG(LogFlow, Error, TEXT("%s"), *Message);
 
-		// Message Log
 #if WITH_EDITOR
-		GetFlowAsset()->GetTemplateAsset()->LogError(Message, this);
+		if (GEditor)
+		{
+			// Message Log
+			GetFlowAsset()->GetTemplateAsset()->LogError(Message, this);
+		}
 #endif
 	}
 #endif
@@ -852,9 +903,12 @@ void UFlowNodeBase::LogWarning(FString Message) const
 		// Output Log
 		UE_LOG(LogFlow, Warning, TEXT("%s"), *Message);
 
-		// Message Log
 #if WITH_EDITOR
-		GetFlowAsset()->GetTemplateAsset()->LogWarning(Message, this);
+		if (GEditor)
+		{
+			// Message Log
+			GetFlowAsset()->GetTemplateAsset()->LogWarning(Message, this);
+		}
 #endif
 	}
 #endif
@@ -868,9 +922,12 @@ void UFlowNodeBase::LogNote(FString Message) const
 		// Output Log
 		UE_LOG(LogFlow, Log, TEXT("%s"), *Message);
 
-		// Message Log
 #if WITH_EDITOR
-		GetFlowAsset()->GetTemplateAsset()->LogNote(Message, this);
+		if (GEditor)
+		{
+			// Message Log
+			GetFlowAsset()->GetTemplateAsset()->LogNote(Message, this);
+		}
 #endif
 	}
 #endif
@@ -890,7 +947,7 @@ void UFlowNodeBase::LogVerbose(FString Message) const
 #if !UE_BUILD_SHIPPING
 bool UFlowNodeBase::BuildMessage(FString& Message) const
 {
-	UFlowAsset* FlowAsset = GetFlowAsset();
+	const UFlowAsset* FlowAsset = GetFlowAsset();
 	if (FlowAsset && FlowAsset->GetTemplateAsset()) // this is runtime log which is should be only called on runtime instances of asset
 	{
 		const FString TemplatePath = FlowAsset->GetTemplateAsset()->GetPathName();
@@ -902,6 +959,212 @@ bool UFlowNodeBase::BuildMessage(FString& Message) const
 	return false;
 }
 #endif
+
+bool UFlowNodeBase::TryAddValueToFormatNamedArguments(const FFlowNamedDataPinProperty& NamedDataPinProperty, FFormatNamedArguments& InOutArguments) const
+{
+	const FFlowDataPinProperty* FlowDataPinProperty = NamedDataPinProperty.DataPinProperty.GetPtr();
+	if (!FlowDataPinProperty)
+	{
+		return false;
+	}
+
+	const EFlowPinType FlowPinType = FlowDataPinProperty->GetFlowPinType();
+
+	FLOW_ASSERT_ENUM_MAX(EFlowPinType, 16);
+	switch (FlowPinType)
+	{
+	case EFlowPinType::Exec:
+		{
+			LogError(TEXT("Cannot add Exec pin value to FFormatNamedArguments"));
+		}
+		break;
+
+	case EFlowPinType::InstancedStruct:
+		{
+			LogError(TEXT("Cannot add InstancedStruct pin value to FFormatNamedArguments"));
+		}
+		break;
+
+	case EFlowPinType::Bool:
+		{
+			const FFlowDataPinResult_Bool ResolvedResult = TryResolveDataPinAsBool(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(ResolvedResult.Value));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Int:
+		{
+			const FFlowDataPinResult_Int ResolvedResult = TryResolveDataPinAsInt(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(ResolvedResult.Value));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Float:
+		{
+			const FFlowDataPinResult_Float ResolvedResult = TryResolveDataPinAsFloat(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(ResolvedResult.Value));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Name:
+		{
+			const FFlowDataPinResult_Name ResolvedResult = TryResolveDataPinAsName(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::String:
+		{
+			const FFlowDataPinResult_String ResolvedResult = TryResolveDataPinAsString(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value)));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Text:
+		{
+			const FFlowDataPinResult_Text ResolvedResult = TryResolveDataPinAsText(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(ResolvedResult.Value));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Enum:
+		{
+			const FFlowDataPinResult_Enum ResolvedResult = TryResolveDataPinAsEnum(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Vector:
+		{
+			const FFlowDataPinResult_Vector ResolvedResult = TryResolveDataPinAsVector(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Rotator:
+		{
+			const FFlowDataPinResult_Rotator ResolvedResult = TryResolveDataPinAsRotator(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Transform:
+		{
+			const FFlowDataPinResult_Transform ResolvedResult = TryResolveDataPinAsTransform(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::GameplayTag:
+		{
+			const FFlowDataPinResult_GameplayTag ResolvedResult = TryResolveDataPinAsGameplayTag(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::GameplayTagContainer:
+		{
+			const FFlowDataPinResult_GameplayTagContainer ResolvedResult = TryResolveDataPinAsGameplayTagContainer(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value.ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Object:
+		{
+			const FFlowDataPinResult_Object ResolvedResult = TryResolveDataPinAsObject(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				if (IsValid(ResolvedResult.Value))
+				{
+					InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.Value->GetName())));
+				}
+				else
+				{
+					InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(TEXT("null"))));
+				}
+
+				return true;
+			}
+		}
+		break;
+
+	case EFlowPinType::Class:
+		{
+			const FFlowDataPinResult_Class ResolvedResult = TryResolveDataPinAsClass(NamedDataPinProperty.Name);
+			if (ResolvedResult.Result == EFlowDataPinResolveResult::Success)
+			{
+				InOutArguments.Add(NamedDataPinProperty.Name.ToString(), FFormatArgumentValue(FText::FromString(ResolvedResult.GetAsSoftClass().ToString())));
+
+				return true;
+			}
+		}
+		break;
+
+	default: break;
+	}
+
+	return false;
+}
 
 EFlowDataPinResolveResult UFlowNodeBase::TryResolveDataPinPrerequisites(const FName& PinName, const UFlowNode*& FlowNode, const FFlowPin*& FlowPin, EFlowPinType PinType) const
 {

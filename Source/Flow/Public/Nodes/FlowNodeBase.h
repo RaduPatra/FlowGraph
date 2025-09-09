@@ -7,10 +7,9 @@
 #include "Interfaces/FlowCoreExecutableInterface.h"
 #include "Interfaces/FlowContextPinSupplierInterface.h"
 #include "FlowMessageLog.h"
-#include "FlowTags.h"
+#include "FlowTags.h" // used by subclasses
 #include "FlowTypes.h"
 #include "Types/FlowDataPinResults.h"
-#include "NativeGameplayTags.h"
 
 #include "FlowNodeBase.generated.h"
 
@@ -22,8 +21,9 @@ class UEdGraphNode;
 class IFlowOwnerInterface;
 class IFlowDataPinValueSupplierInterface;
 struct FFlowPin;
+struct FFlowNamedDataPinProperty;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 DECLARE_DELEGATE(FFlowNodeEvent);
 #endif
 
@@ -114,6 +114,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FlowNode", meta = (HidePin = "ActivationType"))
 	virtual void TriggerOutputPin(const FFlowOutputPinHandle Pin, const bool bFinish = false, const EFlowPinActivationType ActivationType = EFlowPinActivationType::Default);
 
+	// Returns a random seed suitable for this flow node base
+	UFUNCTION(BlueprintPure, Category = "FlowNode")
+	virtual int32 GetRandomSeed() const PURE_VIRTUAL(GetRandomSeed, return 0;);
+
 //////////////////////////////////////////////////////////////////////////
 // Pins	
 
@@ -157,6 +161,8 @@ public:
 	//  NOTE - will consider a UActorComponent owner's owning actor if appropriate
 	IFlowOwnerInterface* GetFlowOwnerInterface() const;
 
+	static TArray<UFlowNodeBase*> BuildFlowNodeBaseAncestorChain(UFlowNodeBase& FromFlowNodeBase, bool bIncludeFromFlowNodeBase);
+
 protected:
 	// Helper functions for GetFlowOwnerInterface()
 	static IFlowOwnerInterface* TryGetFlowOwnerInterfaceFromRootFlowOwner(UObject& RootFlowOwner, const UClass& ExpectedOwnerClass);
@@ -168,7 +174,7 @@ protected:
 protected:
 	// Flow Node AddOn attachments
 	UPROPERTY(BlueprintReadOnly, Instanced, Category = "FlowNode")
-	TArray<UFlowNodeAddOn*> AddOns;
+	TArray<TObjectPtr<UFlowNodeAddOn>> AddOns;
 
 protected:
 	// FlowNodes and AddOns may determine which AddOns are eligible to be their children
@@ -185,29 +191,42 @@ public:
 	virtual const TArray<UFlowNodeAddOn*>& GetFlowNodeAddOnChildren() const { return AddOns; }
 
 #if WITH_EDITOR
-	virtual TArray<UFlowNodeAddOn*>& GetFlowNodeAddOnChildrenByEditor() { return AddOns; }
+	virtual TArray<UFlowNodeAddOn*>& GetFlowNodeAddOnChildrenByEditor() { return MutableView(AddOns); }
 	EFlowAddOnAcceptResult CheckAcceptFlowNodeAddOnChild(const UFlowNodeAddOn* AddOnTemplate, const TArray<UFlowNodeAddOn*>& AdditionalAddOnsToAssumeAreChildren) const;
 #endif // WITH_EDITOR
 
-	// Call a function for all of this object's AddOns (recursively iterating AddOns inside AddOn)
-	EFlowForEachAddOnFunctionReturnValue ForEachAddOnConst(const FConstFlowNodeAddOnFunction& Function) const;
-	EFlowForEachAddOnFunctionReturnValue ForEachAddOn(const FFlowNodeAddOnFunction& Function) const;
+	bool IsClassOrImplementsInterface(const UClass& InterfaceOrClass) const
+	{
+		// InterfaceOrClass can either be the AddOn's UClass (or its superclass)
+		// or an interface (the UClass version) that its UClass implements 
+		return IsA(&InterfaceOrClass) || GetClass()->ImplementsInterface(&InterfaceOrClass);
+	}
 
 	template <typename TInterfaceOrClass>
+	bool IsClassOrImplementsInterface() const
+	{
+		return IsClassOrImplementsInterface(*TInterfaceOrClass::StaticClass());
+	}
+
+	// Call a function for all of this object's AddOns (recursively iterating AddOns inside AddOn)
+	EFlowForEachAddOnFunctionReturnValue ForEachAddOnConst(const FConstFlowNodeAddOnFunction& Function, EFlowForEachAddOnChildRule AddOnChildRule = EFlowForEachAddOnChildRule::AllChildren) const;
+	EFlowForEachAddOnFunctionReturnValue ForEachAddOn(const FFlowNodeAddOnFunction& Function, EFlowForEachAddOnChildRule AddOnChildRule = EFlowForEachAddOnChildRule::AllChildren) const;
+
+	template <typename TInterfaceOrClass, EFlowForEachAddOnChildRule TAddOnChildRule = EFlowForEachAddOnChildRule::AllChildren>
 	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClassConst(const FConstFlowNodeAddOnFunction Function) const
 	{
-		return ForEachAddOnForClassConst(*TInterfaceOrClass::StaticClass(), Function);
+		return ForEachAddOnForClassConst(*TInterfaceOrClass::StaticClass(), Function, TAddOnChildRule);
 	}
 
-	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClassConst(const UClass& InterfaceOrClass, const FConstFlowNodeAddOnFunction& Function) const;
+	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClassConst(const UClass& InterfaceOrClass, const FConstFlowNodeAddOnFunction& Function, EFlowForEachAddOnChildRule AddOnChildRule = EFlowForEachAddOnChildRule::AllChildren) const;
 
-	template <typename TInterfaceOrClass>
+	template <typename TInterfaceOrClass, EFlowForEachAddOnChildRule TAddOnChildRule = EFlowForEachAddOnChildRule::AllChildren>
 	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClass(const FFlowNodeAddOnFunction Function) const
 	{
-		return ForEachAddOnForClass(*TInterfaceOrClass::StaticClass(), Function);
+		return ForEachAddOnForClass(*TInterfaceOrClass::StaticClass(), Function, TAddOnChildRule);
 	}
 
-	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClass(const UClass& InterfaceOrClass, const FFlowNodeAddOnFunction& Function) const;
+	EFlowForEachAddOnFunctionReturnValue ForEachAddOnForClass(const UClass& InterfaceOrClass, const FFlowNodeAddOnFunction& Function, EFlowForEachAddOnChildRule AddOnChildRule = EFlowForEachAddOnChildRule::AllChildren) const;
 
 public:
 
@@ -262,20 +281,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataPins, DisplayName = "Try Resolve DataPin As Class")
 	FFlowDataPinResult_Class TryResolveDataPinAsClass(const FName& PinName) const;
 
-	// Public only for for TResolveDataPinWorkingData's use
+	// Public only for TResolveDataPinWorkingData's use
 	EFlowDataPinResolveResult TryResolveDataPinPrerequisites(const FName& PinName, const UFlowNode*& FlowNode, const FFlowPin*& FlowPin, EFlowPinType PinType) const;
+
+protected:
+
+	bool TryAddValueToFormatNamedArguments(const FFlowNamedDataPinProperty& NamedDataPinProperty, FFormatNamedArguments& InOutArguments) const;
 
 public:
 
 //////////////////////////////////////////////////////////////////////////
 // Editor
-// (some editor symbols exposed to enabled creation of non-editor tooling)
 
-	UPROPERTY()
-	UEdGraphNode* GraphNode;
-	
 #if WITH_EDITORONLY_DATA
 protected:
+	UPROPERTY()
+	TObjectPtr<UEdGraphNode> GraphNode;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "FlowNode")
 	uint8 bDisplayNodeTitleWithoutPrefix : 1;
 	
@@ -293,17 +315,18 @@ protected:
 	FString DeprecatedDevMessage;
 
 	FFlowNodeEvent OnReconstructionRequested;
+	FFlowNodeEvent OnAddOnRequestedParentReconstruction;
 	FFlowMessageLog ValidationLog;
 #endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
 public:
-	void BroadcastReconstructionRequested() const;
-	UEdGraphNode* GetGraphNode() const { return GraphNode; }
+	void BroadcastReconstructionRequested() const; //Artemis todo - deprecate and replace calls with RequestReconstruction
 
 	virtual void PostLoad() override;
-
-#if WITH_EDITOR
+	
 	void SetGraphNode(UEdGraphNode* NewGraphNode);
+	UEdGraphNode* GetGraphNode() const { return GraphNode; }
 
 	// Set up UFlowNodeBase when being opened for edit in the editor
 	virtual void SetupForEditing(UEdGraphNode& EdGraphNode);
@@ -321,6 +344,9 @@ public:
 	// Called by owning FlowNode to add to its Status String.
 	// (may be multi-line)
 	virtual FString GetStatusString() const;
+
+	void RequestReconstruction() const { (void) OnReconstructionRequested.ExecuteIfBound(); };
+	
 #endif
 
 protected:
@@ -366,7 +392,7 @@ public:
 
 protected:
 	void EnsureNodeDisplayStyle();
-#endif
+#endif // WITH_EDITOR
 
 protected:	
 	// Set the editor-only Config Text 

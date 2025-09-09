@@ -40,15 +40,13 @@ void UFlowComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, AddedIdentityTags, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RemovedIdentityTags, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, IdentityTags, Params);
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RecentlySentNotifyTags, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, NotifyTagsFromGraph, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, NotifyTagsFromAnotherComponent, Params);
 #else
-	DOREPLIFETIME(ThisClass, AddedIdentityTags);
-	DOREPLIFETIME(ThisClass, RemovedIdentityTags);
+	DOREPLIFETIME(ThisClass, IdentityTags);
 
 	DOREPLIFETIME(ThisClass, RecentlySentNotifyTags);
 	DOREPLIFETIME(ThisClass, NotifyTagsFromGraph);
@@ -115,7 +113,12 @@ void UFlowComponent::AddIdentityTag(const FGameplayTag Tag, const EFlowNetMode N
 	if (IsFlowNetMode(NetMode) && Tag.IsValid() && !IdentityTags.HasTagExact(Tag))
 	{
 		IdentityTags.AddTag(Tag);
-
+#if WITH_PUSH_MODEL
+		if (GetNetMode() < NM_Client)
+		{
+			MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, IdentityTags, this);
+		}
+#endif
 		if (HasBegunPlay())
 		{
 			OnIdentityTagsAdded.Broadcast(this, FGameplayTagContainer(Tag));
@@ -123,14 +126,6 @@ void UFlowComponent::AddIdentityTag(const FGameplayTag Tag, const EFlowNetMode N
 			if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
 			{
 				FlowSubsystem->OnIdentityTagAdded(this, Tag);
-			}
-
-			if (IsNetMode(NM_DedicatedServer) || IsNetMode(NM_ListenServer))
-			{
-				AddedIdentityTags = FGameplayTagContainer(Tag);
-#if WITH_PUSH_MODEL
-				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, AddedIdentityTags, this);
-#endif
 			}
 		}
 	}
@@ -151,21 +146,22 @@ void UFlowComponent::AddIdentityTags(FGameplayTagContainer Tags, const EFlowNetM
 			}
 		}
 
-		if (ValidatedTags.Num() > 0 && HasBegunPlay())
+		if (ValidatedTags.Num() > 0)
 		{
-			OnIdentityTagsAdded.Broadcast(this, ValidatedTags);
-
-			if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
-			{
-				FlowSubsystem->OnIdentityTagsAdded(this, ValidatedTags);
-			}
-
-			if (IsNetMode(NM_DedicatedServer) || IsNetMode(NM_ListenServer))
-			{
-				AddedIdentityTags = ValidatedTags;
 #if WITH_PUSH_MODEL
-				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, AddedIdentityTags, this);
+			if (GetNetMode() < NM_Client)
+			{
+				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, IdentityTags, this);
+			}
 #endif
+			if (HasBegunPlay())
+			{
+				OnIdentityTagsAdded.Broadcast(this, ValidatedTags);
+
+				if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
+				{
+					FlowSubsystem->OnIdentityTagsAdded(this, ValidatedTags);
+				}
 			}
 		}
 	}
@@ -176,7 +172,12 @@ void UFlowComponent::RemoveIdentityTag(const FGameplayTag Tag, const EFlowNetMod
 	if (IsFlowNetMode(NetMode) && Tag.IsValid() && IdentityTags.HasTagExact(Tag))
 	{
 		IdentityTags.RemoveTag(Tag);
-
+#if WITH_PUSH_MODEL
+		if (GetNetMode() < NM_Client)
+		{
+			MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, IdentityTags, this);
+		}
+#endif
 		if (HasBegunPlay())
 		{
 			OnIdentityTagsRemoved.Broadcast(this, FGameplayTagContainer(Tag));
@@ -184,14 +185,6 @@ void UFlowComponent::RemoveIdentityTag(const FGameplayTag Tag, const EFlowNetMod
 			if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
 			{
 				FlowSubsystem->OnIdentityTagRemoved(this, Tag);
-			}
-
-			if (IsNetMode(NM_DedicatedServer) || IsNetMode(NM_ListenServer))
-			{
-				RemovedIdentityTags = FGameplayTagContainer(Tag);
-#if WITH_PUSH_MODEL
-				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, RemovedIdentityTags, this);
-#endif
 			}
 		}
 	}
@@ -212,45 +205,67 @@ void UFlowComponent::RemoveIdentityTags(FGameplayTagContainer Tags, const EFlowN
 			}
 		}
 
-		if (ValidatedTags.Num() > 0 && HasBegunPlay())
+		if (ValidatedTags.Num() > 0)
 		{
-			OnIdentityTagsRemoved.Broadcast(this, ValidatedTags);
-
-			if (UFlowSubsystem* FlowSubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UFlowSubsystem>())
-			{
-				FlowSubsystem->OnIdentityTagsRemoved(this, ValidatedTags);
-			}
-
-			if (IsNetMode(NM_DedicatedServer) || IsNetMode(NM_ListenServer))
-			{
-				RemovedIdentityTags = ValidatedTags;
 #if WITH_PUSH_MODEL
-				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, RemovedIdentityTags, this);
+			if (GetNetMode() < NM_Client)
+			{
+				MARK_PROPERTY_DIRTY_FROM_NAME(UFlowComponent, IdentityTags, this);
+			}
 #endif
+			if (HasBegunPlay())
+			{
+				OnIdentityTagsRemoved.Broadcast(this, ValidatedTags);
+
+				if (UFlowSubsystem* FlowSubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UFlowSubsystem>())
+				{
+					FlowSubsystem->OnIdentityTagsRemoved(this, ValidatedTags);
+				}
 			}
 		}
 	}
 }
 
-void UFlowComponent::OnRep_AddedIdentityTags()
+void UFlowComponent::OnRep_IdentityTags(const FGameplayTagContainer& PreviousTags)
 {
-	IdentityTags.AppendTags(AddedIdentityTags);
-	OnIdentityTagsAdded.Broadcast(this, AddedIdentityTags);
 
-	if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
+	// Any tags that are now in the IdentityTags container but haven't been previously must have been added.
+	FGameplayTagContainer AddedTags;
+	for (const FGameplayTag& Tag : IdentityTags)
 	{
-		FlowSubsystem->OnIdentityTagsAdded(this, AddedIdentityTags);
+		if (!PreviousTags.HasTagExact(Tag))
+		{
+			AddedTags.AddTag(Tag);
+		}
 	}
-}
 
-void UFlowComponent::OnRep_RemovedIdentityTags()
-{
-	IdentityTags.RemoveTags(RemovedIdentityTags);
-	OnIdentityTagsRemoved.Broadcast(this, RemovedIdentityTags);
-
-	if (UFlowSubsystem* FlowSubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UFlowSubsystem>())
+	if (AddedTags.Num() > 0)
 	{
-		FlowSubsystem->OnIdentityTagsRemoved(this, RemovedIdentityTags);
+		OnIdentityTagsAdded.Broadcast(this, AddedTags);
+
+		if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
+		{
+			FlowSubsystem->OnIdentityTagsAdded(this, AddedTags);
+		}
+	}
+
+	// Any tags that have been in the IdentityTags container previously but aren't in it anymore after the replication update must have been removed.
+	FGameplayTagContainer RemovedTags;
+	for (const FGameplayTag& Tag : PreviousTags)
+	{
+		if (!IdentityTags.HasTagExact(Tag))
+		{
+			RemovedTags.AddTag(Tag);
+		}
+	}
+	if (RemovedTags.Num() > 0)
+	{
+		OnIdentityTagsRemoved.Broadcast(this, RemovedTags);
+
+		if (UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
+		{
+			FlowSubsystem->OnIdentityTagsRemoved(this, RemovedTags);
+		}
 	}
 }
 
@@ -270,15 +285,20 @@ void UFlowComponent::LogError(FString Message, const EFlowOnScreenMessageType On
 
 	if (OnScreenMessageType == EFlowOnScreenMessageType::Permanent)
 	{
-		if (GetWorld())
+		if (UWorld* World = GetWorld())
 		{
-			if (UViewportStatsSubsystem* StatsSubsystem = GetWorld()->GetSubsystem<UViewportStatsSubsystem>())
+			if (UViewportStatsSubsystem* StatsSubsystem = World->GetSubsystem<UViewportStatsSubsystem>())
 			{
-				StatsSubsystem->AddDisplayDelegate([this, Message](FText& OutText, FLinearColor& OutColor)
+				StatsSubsystem->AddDisplayDelegate([WeakThis = TWeakObjectPtr<const UFlowComponent>(this), Message](FText& OutText, FLinearColor& OutColor)
 				{
-					OutText = FText::FromString(Message);
-					OutColor = FLinearColor::Red;
-					return IsValid(this);
+					if (WeakThis.Get())
+					{
+						OutText = FText::FromString(Message);
+						OutColor = FLinearColor::Red;
+						return true;
+					}
+
+					return false;
 				});
 			}
 		}
@@ -470,10 +490,40 @@ UFlowAsset* UFlowComponent::GetRootFlowInstance() const
 	return nullptr;
 }
 
+void UFlowComponent::TriggerRootFlowCustomInput(const FName& EventName) const
+{
+	if (RootFlow && IsFlowNetMode(RootFlowMode))
+	{
+		if (const UFlowSubsystem* FlowSubsystem = GetFlowSubsystem())
+		{
+			UFlowAsset* RootFlowInstance = FlowSubsystem->GetRootFlow(this);
+			if (IsValid(RootFlowInstance))
+			{
+				RootFlowInstance->TriggerCustomInput(EventName);
+			}
+		}
+	}
+}
+
+void UFlowComponent::DispatchRootFlowCustomEvent(UFlowAsset* RootFlowInstance, const FName& EventName)
+{
+	BP_OnRootFlowCustomEvent(RootFlowInstance, EventName);
+	OnRootFlowCustomEvent(RootFlowInstance, EventName);
+}
+
+void UFlowComponent::BP_OnTriggerRootFlowOutputEvent(UFlowAsset* RootFlowInstance, const FName& EventName)
+{
+	BP_OnRootFlowCustomEvent(RootFlowInstance, EventName);
+}
+
+void UFlowComponent::OnTriggerRootFlowOutputEvent(UFlowAsset* RootFlowInstance, const FName& EventName)
+{
+	OnRootFlowCustomEvent(RootFlowInstance, EventName);
+}
+
 void UFlowComponent::OnTriggerRootFlowOutputEventDispatcher(UFlowAsset* RootFlowInstance, const FName& EventName)
 {
-	BP_OnTriggerRootFlowOutputEvent(RootFlowInstance, EventName);
-	OnTriggerRootFlowOutputEvent(RootFlowInstance, EventName);
+	DispatchRootFlowCustomEvent(RootFlowInstance, EventName);
 }
 
 void UFlowComponent::SaveRootFlow(TArray<FFlowAssetSaveData>& SavedFlowInstances)
@@ -494,7 +544,7 @@ void UFlowComponent::LoadRootFlow()
 	{
 		VerifyIdentityTags();
 
-		GetFlowSubsystem()->LoadRootFlow(this, RootFlow, SavedAssetInstanceName);
+		GetFlowSubsystem()->LoadRootFlow(this, RootFlow, SavedAssetInstanceName, bAllowMultipleInstances);
 		SavedAssetInstanceName = FString();
 	}
 }

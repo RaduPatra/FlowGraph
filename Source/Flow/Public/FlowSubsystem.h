@@ -41,17 +41,17 @@ public:
 private:
 	/* All asset templates with active instances */
 	UPROPERTY()
-	TArray<UFlowAsset*> InstancedTemplates;
+	TArray<TObjectPtr<UFlowAsset>> InstancedTemplates;
 
 	/* Assets instanced by object from another system, i.e. World Settings or Player Controller */
 	UPROPERTY()
-	TMap<UFlowAsset*, TWeakObjectPtr<UObject>> RootInstances;
+	TMap<TObjectPtr<UFlowAsset>, TWeakObjectPtr<UObject>> RootInstances;
 
 	/* Assets instanced by Sub Graph nodes */
 	UPROPERTY()
-	TMap<UFlowNode_SubGraph*, UFlowAsset*> InstancedSubFlows;
+	TMap<TObjectPtr<UFlowNode_SubGraph>, TObjectPtr<UFlowAsset>> InstancedSubFlows;
 
-#if WITH_EDITOR
+#if !UE_BUILD_SHIPPING
 public:
 	/* Called after creating the first instance of given Flow Asset */
 	static FNativeFlowAssetEvent OnInstancedTemplateAdded;
@@ -59,10 +59,10 @@ public:
 	/* Called just before removing the last instance of given Flow Asset */
 	static FNativeFlowAssetEvent OnInstancedTemplateRemoved;
 #endif
-	
+
 protected:
 	UPROPERTY()
-	UFlowSaveGame* LoadedSaveGame;
+	TObjectPtr<UFlowSaveGame> LoadedSaveGame;
 
 public:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
@@ -93,18 +93,20 @@ public:
 	 * Example: Spawn node might despawn all actors if Flow Graph is aborted, not completed */
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void FinishAllRootFlows(UObject* Owner, const EFlowFinishPolicy FinishPolicy);
-	UFlowAsset* CreateInjectedSubFlow(UFlowNode_InjectSubgraph* SubGraphNode, const FString SavedInstanceName = FString(), const bool bPreloading = false);
-	UFlowAsset* CreateFlowInstance(const TWeakObjectPtr<UObject> Owner, TSoftObjectPtr<UFlowAsset> FlowAsset, FString NewInstanceName = FString());
 
 protected:
 	UFlowAsset* CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString& SavedInstanceName = FString(), const bool bPreloading = false);
 	void RemoveSubFlow(UFlowNode_SubGraph* SubGraphNode, const EFlowFinishPolicy FinishPolicy);
 
+public:
+	UFlowAsset* CreateFlowInstance(const TWeakObjectPtr<UObject> Owner, UFlowAsset* LoadedFlowAsset, FString NewInstanceName = FString());
+	UFlowAsset* CreateInjectedSubFlow(UFlowNode_InjectSubgraph* SubGraphNode, const FString SavedInstanceName = FString(), const bool bPreloading = false);
 
-public:	
+protected:
 	virtual void AddInstancedTemplate(UFlowAsset* Template);
 	virtual void RemoveInstancedTemplate(UFlowAsset* Template);
 
+public:
 	/* Returns all assets instanced by object from another system like World Settings */
 	UFUNCTION(BlueprintPure, Category = "FlowSubsystem")
 	TMap<UObject*, UFlowAsset*> GetRootInstances() const;
@@ -118,7 +120,7 @@ public:
 
 	/* Returns assets instanced by Sub Graph nodes */
 	UFUNCTION(BlueprintPure, Category = "FlowSubsystem")
-	const TMap<UFlowNode_SubGraph*, UFlowAsset*>& GetInstancedSubFlows() const { return InstancedSubFlows; }
+	const TMap<UFlowNode_SubGraph*, UFlowAsset*>& GetInstancedSubFlows() const { return ObjectPtrDecay(InstancedSubFlows); }
 
 	virtual UWorld* GetWorld() const override;
 
@@ -135,7 +137,7 @@ public:
 	virtual void OnGameLoaded(UFlowSaveGame* SaveGame);
 
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem")
-	virtual void LoadRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const FString& SavedAssetInstanceName);
+	virtual void LoadRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const FString& SavedAssetInstanceName, const bool bAllowMultipleInstances);
 
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem")
 	virtual void LoadSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString& SavedAssetInstanceName);

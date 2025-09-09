@@ -25,6 +25,7 @@
 #include "Misc/UObjectToken.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "FlowEditorModule.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -78,10 +79,6 @@ void FFlowAssetEditor::HandleUndoTransaction()
 
 void FFlowAssetEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
-	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
-	{
-		GraphEditor->NotifyGraphChanged();
-	}
 }
 
 FName FFlowAssetEditor::GetToolkitFName() const
@@ -391,6 +388,8 @@ void FFlowAssetEditor::InitFlowAssetEditor(const EToolkitMode::Type Mode, const 
 	constexpr bool bCreateDefaultToolbar = true;
 	InitAssetEditor(Mode, InitToolkitHost, TEXT("FlowEditorApp"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectToEdit, false);
 
+	InitalizeExtenders();
+	
 	RegenerateMenusAndToolbars();
 }
 
@@ -445,6 +444,13 @@ void FFlowAssetEditor::BindToolbarCommands()
 								FIsActionButtonVisible::CreateSP(this, &FFlowAssetEditor::CanGoToParentInstance));
 }
 
+void FFlowAssetEditor::InitalizeExtenders()
+{
+	FFlowEditorModule* FlowEditorModule = &FModuleManager::LoadModuleChecked<FFlowEditorModule>("FlowEditor");
+	AddMenuExtender(FlowEditorModule->GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+	AddToolbarExtender(FlowEditorModule->GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+}
+
 void FFlowAssetEditor::RefreshAsset()
 {
 	// attempt to refresh graph, fix common issues automatically
@@ -471,9 +477,9 @@ void FFlowAssetEditor::ValidateAsset_Internal()
 		TabManager->TryInvokeTab(ValidationLogTab);
 		ValidationLogListing->AddMessages(LogResults.Messages);
 	}
+
 	ValidationLogListing->OnDataChanged().Broadcast();
 
-	// https://github.com/MothCocoon/FlowGraph/pull/235/commits/b1d3483ba1f3cd0c72fbf61662ee8848e8c12f5a
 	FlowAsset->GetGraph()->NotifyGraphChanged();
 }
 

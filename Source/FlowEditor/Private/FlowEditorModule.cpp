@@ -15,6 +15,8 @@
 #include "Pins/SFlowInputPinHandle.h"
 #include "Pins/SFlowOutputPinHandle.h"
 
+#include "FlowModule.h"
+
 #include "DetailCustomizations/FlowAssetDetails.h"
 #include "DetailCustomizations/FlowNode_Details.h"
 #include "DetailCustomizations/FlowNode_ComponentObserverDetails.h"
@@ -23,7 +25,6 @@
 #include "DetailCustomizations/FlowNode_PlayLevelSequenceDetails.h"
 #include "DetailCustomizations/FlowNode_SubGraphDetails.h"
 #include "DetailCustomizations/FlowNodeAddOn_Details.h"
-#include "DetailCustomizations/FlowOwnerFunctionRefCustomization.h"
 #include "DetailCustomizations/FlowActorOwnerComponentRefCustomization.h"
 #include "DetailCustomizations/FlowDataPinPropertyCustomizations.h"
 #include "DetailCustomizations/FlowDataPinProperty_ClassCustomization.h"
@@ -34,15 +35,14 @@
 
 #include "FlowAsset.h"
 #include "AddOns/FlowNodeAddOn.h"
-#include "Nodes/Route/FlowNode_CustomInput.h"
-#include "Nodes/Route/FlowNode_CustomOutput.h"
-#include "Nodes/Route/FlowNode_SubGraph.h"
-#include "Nodes/World/FlowNode_ComponentObserver.h"
-#include "Nodes/World/FlowNode_PlayLevelSequence.h"
+#include "Nodes/Actor/FlowNode_ComponentObserver.h"
+#include "Nodes/Actor/FlowNode_PlayLevelSequence.h"
+#include "Nodes/Graph/FlowNode_CustomInput.h"
+#include "Nodes/Graph/FlowNode_CustomOutput.h"
+#include "Nodes/Graph/FlowNode_SubGraph.h"
 
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
-#include "FlowModule.h"
 #include "IAssetSearchModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerChannelInterface.h" // ignore Rider's false "unused include" warning
@@ -59,6 +59,9 @@ FAssetCategoryPath FFLowAssetCategoryPaths::Flow(LOCTEXT("Flow", "Flow"));
 
 void FFlowEditorModule::StartupModule()
 {
+	MenuExtensibilityManager = MakeShared<FExtensibilityManager>();
+	ToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
+	
 	FFlowEditorStyle::Initialize();
 
 	TrySetFlowNodeDisplayStyleDefaults();
@@ -101,6 +104,9 @@ void FFlowEditorModule::StartupModule()
 
 void FFlowEditorModule::ShutdownModule()
 {
+	MenuExtensibilityManager.Reset();
+	ToolBarExtensibilityManager.Reset();
+	
 	FFlowEditorStyle::Shutdown();
 
 	UnregisterDetailCustomizations();
@@ -120,8 +126,7 @@ void FFlowEditorModule::TrySetFlowNodeDisplayStyleDefaults() const
 	FModuleManager::LoadModuleChecked<FFlowModule>("Flow");
 
 	UFlowGraphSettings& Settings = *UFlowGraphSettings::Get();
-	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Base, FLinearColor(0.0f, 0.581f, 1.0f, 1.0f)));
-
+	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Node, FLinearColor(0.0f, 0.581f, 1.0f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Condition, FLinearColor(1.0f, 0.62f, 0.016f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Deprecated, FLinearColor(1.0f, 1.0f, 0.0f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Developer, FLinearColor(0.7f, 0.2f, 1.0f, 1.0f)));
@@ -131,10 +136,10 @@ void FFlowEditorModule::TrySetFlowNodeDisplayStyleDefaults() const
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::SubGraph, FLinearColor(1.0f, 0.128f, 0.0f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::Terminal, FLinearColor(1.0f, 0.0f, 0.008f, 1.0f)));
 
-	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn, FLinearColor(0.0f, 0.581f, 1.0f, 1.0f))); // !!! Update this
+	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn, FLinearColor(0.0f, 0.581f, 1.0f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn_PerSpawnedActor, FLinearColor(0.3f, 0.3f, 1.0f, 1.0f)));
 	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn_Predicate, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));
-	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn_Predicate_Composite, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))); // !!! Update this
+	(void) Settings.TryAddDefaultNodeDisplayStyle(FFlowNodeDisplayStyleConfig(FlowNodeStyle::AddOn_Predicate_Composite, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));
 }
 
 void FFlowEditorModule::RegisterAssets()
@@ -226,10 +231,9 @@ void FFlowEditorModule::RegisterDetailCustomizations()
 		RegisterCustomClassLayout(UFlowNode_CustomOutput::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FFlowNode_CustomOutputDetails::MakeInstance));
 		RegisterCustomClassLayout(UFlowNode_PlayLevelSequence::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FFlowNode_PlayLevelSequenceDetails::MakeInstance));
 	    RegisterCustomClassLayout(UFlowNode_SubGraph::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FFlowNode_SubGraphDetails::MakeInstance));
-		RegisterCustomStructLayout(*FFlowOwnerFunctionRef::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowOwnerFunctionRefCustomization::MakeInstance));
 		RegisterCustomStructLayout(*FFlowActorOwnerComponentRef::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowActorOwnerComponentRefCustomization::MakeInstance));
 		RegisterCustomStructLayout(*FFlowPin::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowPinCustomization::MakeInstance));
-		RegisterCustomStructLayout(*FFlowNamedDataPinOutputProperty::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowNamedDataPinOutputPropertyCustomization::MakeInstance));
+		RegisterCustomStructLayout(*FFlowNamedDataPinProperty::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowNamedDataPinPropertyCustomization::MakeInstance));
 
 		RegisterCustomStructLayout(*FFlowDataPinOutputProperty_Bool::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowDataPinOutputProperty_BoolCustomization::MakeInstance));
 		RegisterCustomStructLayout(*FFlowDataPinOutputProperty_Int64::StaticStruct(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFlowDataPinOutputProperty_Int64Customization::MakeInstance));

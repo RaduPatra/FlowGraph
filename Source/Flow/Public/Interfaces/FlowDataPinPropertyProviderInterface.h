@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "InstancedStruct.h"
+#include "StructUtils/InstancedStruct.h"
 #include "UObject/Interface.h"
-
 #include "FlowDataPinPropertyProviderInterface.generated.h"
 
 struct FFlowDataPinProperty;

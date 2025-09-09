@@ -15,30 +15,31 @@ public class FlowEditor : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new[]
 		{
+			"AssetSearch",
 			"EditorSubsystem",
 			"Flow",
+			"FlowDebugger",
 			"MessageLog",
-			"AIModule", // For BlueprintNodeHelpers::DescribeProperty (could be copy/pasted out to remove editor-only dependency)
-			"AssetSearch",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
+			"AIModule", // For BlueprintNodeHelpers::DescribeProperty (could be copy/pasted out to remove editor-only dependency)
 			"ApplicationCore",
 			"AssetDefinition",
-			// "AssetSearch",
 			"AssetTools",
 			"BlueprintGraph",
 			"ClassViewer",
 			"ContentBrowser",
 			"Core",
-			"CoreUObject",f
+			"CoreUObject",
 			"DetailCustomizations",
 			"DeveloperSettings",
 			"EditorFramework",
 			"EditorScriptingUtilities",
 			"EditorStyle",
 			"Engine",
+			"EngineAssetDefinitions",
 			"GraphEditor",
 			"GameplayTags",
 			"InputCore",
@@ -56,10 +57,10 @@ public class FlowEditor : ModuleRules
 			"PropertyPath",
 			"RenderCore",
 			"Sequencer",
+			"SequencerCore",
 			"Slate",
 			"SlateCore",
 			"SourceControl",
-			"StructUtils",
 			"ToolMenus",
 			"UnrealEd"
 		});
