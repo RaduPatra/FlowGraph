@@ -350,3 +350,4 @@ void UFlowNode_PlayLevelSequence::GrabDebugSnapshot(struct FVisualLogEntry* Snap
 	Snapshot->Status.Add(NewCategory);
 }
 #endif
+

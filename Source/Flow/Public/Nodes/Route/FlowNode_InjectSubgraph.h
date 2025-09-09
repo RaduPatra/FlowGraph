@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include <Nodes/Graph/FlowNode_SubGraph.h>
+
 #include "CoreMinimal.h"
-#include "FlowNode_SubGraph.h"
 #include "Nodes/Utils/FlowInjectionTag.h"
 #include "FlowNode_InjectSubgraph.generated.h"
 

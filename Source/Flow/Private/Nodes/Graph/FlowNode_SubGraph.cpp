@@ -90,6 +90,11 @@ void UFlowNode_SubGraph::Cleanup()
 	Super::Cleanup();
 }
 
+void UFlowNode_SubGraph::SetAsset(const TSoftObjectPtr<UFlowAsset>& FlowAsset)
+{
+	Asset = FlowAsset;
+}
+
 void UFlowNode_SubGraph::ForceFinishNode()
 {
 	TriggerFirstOutput(true);
@@ -205,9 +210,7 @@ TArray<FFlowPin> UFlowNode_SubGraph::GetContextOutputs() const
 			}
 		}
 	}
-		
-}
-
+	
 	return ContextOutputPins;
 }
 

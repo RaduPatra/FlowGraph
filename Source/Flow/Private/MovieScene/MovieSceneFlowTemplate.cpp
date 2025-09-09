@@ -6,6 +6,8 @@
 
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
+#include "LevelSequenceActor.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFlowTemplate)
 
@@ -16,11 +18,16 @@ DECLARE_CYCLE_STAT(TEXT("Flow Track Token Execute"), MovieSceneEval_FlowTrack_To
 struct FFlowTrackExecutionToken final : IMovieSceneExecutionToken
 {
 	FFlowTrackExecutionToken(TArray<FString> InEventNames)
-		: EventNames(MoveTemp(InEventNames))
+			: EventNames(MoveTemp(InEventNames))
 	{
+		idTest = FMath::RandRange(0.0f, 100.0f);
 	}
 
 	TArray<FString> EventNames;
+	bool bEvaluatedUpperBound = false;
+	bool bEvaluatedLowerBound = false;
+	float idTest = 0.0f;
+	
 
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 	{
@@ -30,14 +37,116 @@ struct FFlowTrackExecutionToken final : IMovieSceneExecutionToken
 		{
 			for (UObject* EventReceiver : Player.GetEventContexts())
 			{
-				if (UFlowNode_PlayLevelSequence* FlowNode = Cast<UFlowNode_PlayLevelSequence>(EventReceiver))
+				// if (UFlowNode_PlayLevelSequence* FlowNode = Cast<UFlowNode_PlayLevelSequence>(EventReceiver))
+				// {
+				// 	FlowNode->TriggerEvent(EventName);
+				// } 
+
+				UFlowNode* FlowNode = Cast<UFlowNode>(EventReceiver);
+				IFlowEventReceiver* FlowEventReceiver = Cast<IFlowEventReceiver>(EventReceiver);
+				if (!FlowEventReceiver)
 				{
-					FlowNode->TriggerEvent(EventName);
+					return;
 				}
+				ALevelSequenceActor* SequenceActor = FlowEventReceiver->GetSequenceActor();
+				if (!SequenceActor)
+				{
+					return;
+				}
+				
+				ULevelSequence* Sequence = SequenceActor->GetSequence();
+				if (!Sequence)
+				{
+					return;
+				}
+				//get the current track and section
+				const FMovieSceneTrackIdentifier CurrTrackIdentifier = PersistentData.GetTrackKey().TrackIdentifier;
+				const int CurrSectionId = PersistentData.GetSectionKey().SectionIndex;
+
+				//get the current frame of the sequence
+				const ULevelSequencePlayer* SequencePlayer = SequenceActor->GetSequencePlayer();
+				FLevelSequencePlayerSnapshot Snapshot;
+				SequencePlayer->TakeFrameSnapshot(Snapshot);
+				const FQualifiedFrameTime SnapShotFrame = Snapshot.RootTime;
+				double time2 = SnapShotFrame.Time.AsDecimal();
+				UE_LOG(LogTemp, Warning, TEXT("All Frame Time: %f, %f"), time2, idTest);
+				UE_LOG(LogTemp, Warning, TEXT("Event Name: %s"), *EventName);
+				TArray<UMovieSceneTrack*> Tracks = Sequence->GetMovieScene()->GetTracks();
+				for (int TrackIdx = 0; TrackIdx < Tracks.Num(); ++TrackIdx)
+				{
+					const UMovieSceneTrack* Track = Tracks[TrackIdx];
+					// UMovieSceneTrack* foundTrack = Sequence->GetMovieScene()->FindTrack(UMovieScene::StaticClass(), Track->GetSignature());
+					UMovieSceneCompiledDataManager* CompiledDataManager = Player.GetEvaluationTemplate().GetCompiledDataManager();
+					const FMovieSceneCompiledDataID CompiledDataID = CompiledDataManager->GetDataID(Sequence);
+					const FMovieSceneEvaluationTemplate* Template = CompiledDataManager->FindTrackTemplate(CompiledDataID);
+
+					//find the track with the same identifier (only way to do this for now since you can't directly get the track id :c)
+					const FMovieSceneEvaluationTrack* EvalTrack = Template->FindTrack(CurrTrackIdentifier);
+					const UMovieSceneTrack* SourceTrack = EvalTrack->GetSourceTrack();
+
+					//if found track is the same as the current track
+					if (SourceTrack == Track)
+					{
+						TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
+						UMovieSceneSection* Section = Sections[CurrSectionId];
+						const UMovieSceneFlowRepeaterSection* RepeaterFlowSection = Cast<UMovieSceneFlowRepeaterSection>(Section);
+						if (!RepeaterFlowSection)
+						{
+							break;
+						}
+
+						bool preroll = Context.IsPreRoll();
+						UE_LOG(LogTemp, Warning, TEXT("Preroll: %d"), preroll);
+						bool silent = Context.IsSilent();
+						UE_LOG(LogTemp, Warning, TEXT("Preroll: %d"), silent);
+
+						UE_LOG(LogTemp, Warning, TEXT("Message"));
+						const int TicksPerFrame =Sequence->GetMovieScene()->GetTickResolution().Numerator / Sequence->GetMovieScene()->GetDisplayRate().Numerator;
+						FFrameNumber a = SnapShotFrame.Time.GetFrame();
+						TRange<FFrameNumber> SectionRange = RepeaterFlowSection->GetRange();
+						
+						TRangeBound<FFrameNumber> UpperBound = SectionRange.GetUpperBound();
+						const FFrameNumber UpperVal = UpperBound.GetValue().Value / TicksPerFrame;
+
+						TRangeBound<FFrameNumber> LowerBound = SectionRange.GetLowerBound();
+						const FFrameNumber LowVal = LowerBound.GetValue().Value / TicksPerFrame;
+
+						FQualifiedFrameTime RangeQualifiedTimeLower = FQualifiedFrameTime(LowVal, SnapShotFrame.Rate);
+						FQualifiedFrameTime RangeQualifiedTimeUpper = FQualifiedFrameTime(UpperVal, SnapShotFrame.Rate);
+
+						if (LowVal == SnapShotFrame.Time.FrameNumber && !bEvaluatedLowerBound)
+						{
+							bEvaluatedLowerBound = true;
+							double time = SnapShotFrame.Time.AsDecimal();
+							UE_LOG(LogTemp, Warning, TEXT("Frame Time: %f, %f"), time, idTest);
+							FlowEventReceiver->TriggerSectionBeginEvent(EventName);
+							return;
+						}
+						else if (UpperVal == SnapShotFrame.Time.FrameNumber && !bEvaluatedUpperBound)
+						{
+							bEvaluatedUpperBound = true;
+							double time = SnapShotFrame.Time.AsDecimal();
+							UE_LOG(LogTemp, Warning, TEXT("Frame Time: %f, %f"), time, idTest);
+							FlowEventReceiver->TriggerSectionFinishEvent(EventName);
+							return;
+						}
+
+						if (bEvaluatedLowerBound || bEvaluatedUpperBound)
+						{
+							return;
+						}
+					}
+				}
+
+				//for cinematic dialogue, should prob only trigger 'trigger' events here, not section events. Unless somehow we want to do something every frame during the section.
+				//maybe a custom dialogue Flow exec token would be a better idea
+				FlowEventReceiver->TriggerEvent(EventName);
+				FlowEventReceiver->TriggerEvent(EventName, Context, PersistentData, Player);
 			}
 		}
 	}
 };
+
 
 FMovieSceneFlowTriggerTemplate::FMovieSceneFlowTriggerTemplate(const UMovieSceneFlowTriggerSection& Section, const UMovieSceneFlowTrack& Track)
 	: FMovieSceneFlowTemplateBase(Track, Section)

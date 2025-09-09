@@ -62,6 +62,16 @@ UWorld* UFlowNodeBase::GetWorld() const
 	return nullptr;
 }
 
+void UFlowNodeBase::EditorNodeRefreshed()
+{
+}
+
+
+void UFlowNodeBase::ExecuteInputFinished(const FName& PinName)
+{
+	
+}
+
 void UFlowNodeBase::InitializeInstance()
 {
 	IFlowCoreExecutableInterface::InitializeInstance();
@@ -148,6 +158,9 @@ void UFlowNodeBase::ExecuteInputForSelfAndAddOns(const FName& PinName)
 	{
 		AddOn->ExecuteInputForSelfAndAddOns(PinName);
 	}
+	
+	ExecuteInputFinished(PinName);
+	
 }
 
 void UFlowNodeBase::ExecuteInput(const FName& PinName)
@@ -627,6 +640,7 @@ void UFlowNodeBase::PostLoad()
 
 	EnsureNodeDisplayStyle();
 }
+#endif
 
 #if WITH_EDITOR
 void UFlowNodeBase::BroadcastReconstructionRequested() const

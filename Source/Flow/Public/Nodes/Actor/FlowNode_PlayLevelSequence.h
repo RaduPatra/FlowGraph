@@ -14,6 +14,40 @@ class UFlowLevelSequencePlayer;
 
 DECLARE_MULTICAST_DELEGATE(FFlowNodeLevelSequenceEvent);
 
+
+UINTERFACE()
+class FLOW_API UFlowEventReceiver : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class FLOW_API IFlowEventReceiver
+{
+	GENERATED_BODY()
+
+public:
+	virtual void TriggerEvent(const FString& EventName)
+	{
+	}
+
+	virtual void TriggerEvent(const FString& EventName, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
+	{
+	}
+
+	virtual void TriggerSectionBeginEvent(const FString& EventName)
+	{
+	}
+
+	virtual void TriggerSectionFinishEvent(const FString& EventName)
+	{
+	}
+
+	virtual ALevelSequenceActor* GetSequenceActor() const
+	{
+		return nullptr;
+	}
+};
+
 /**
  * Order of triggering outputs after calling Start
  * - PreStart, just before starting playback
@@ -22,7 +56,7 @@ DECLARE_MULTICAST_DELEGATE(FFlowNodeLevelSequenceEvent);
  * - Completed
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Play Level Sequence"))
-class FLOW_API UFlowNode_PlayLevelSequence : public UFlowNode
+class FLOW_API UFlowNode_PlayLevelSequence : public UFlowNode, public IFlowEventReceiver
 {
 	GENERATED_UCLASS_BODY()
 	friend struct FFlowTrackExecutionToken;
@@ -106,7 +140,7 @@ protected:
 	virtual void OnLoad_Implementation() override;
 
 private:
-	void TriggerEvent(const FString& EventName);
+	virtual void TriggerEvent(const FString& EventName) override;
 
 public:
 	void OnTimeDilationUpdate(const float NewTimeDilation);

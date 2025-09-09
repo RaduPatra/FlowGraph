@@ -216,6 +216,16 @@ void UFlowGraphNode::OnExternalChange()
 void UFlowGraphNode::OnGraphRefresh()
 {
 	ReconstructNode();
+	//RefreshContextPins(true);
+
+	UFlowNode* FlowNode = Cast<UFlowNode>(NodeInstance);
+	if (!IsValid(FlowNode))
+	{
+		return;
+	}
+
+	FlowNode->EditorNodeRefreshed();
+	
 }
 
 bool UFlowGraphNode::CanPlaceBreakpoints() const

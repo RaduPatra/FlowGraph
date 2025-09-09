@@ -288,6 +288,34 @@ bool UFlowAsset::CanFlowAssetReferenceFlowNode(const UClass& FlowNodeClass, FTex
 	return true;
 }
 
+void UFlowAsset::UpdateUsagesForDeletedDeclaration(const FGuid& DeclarationGuid) const
+{
+	for (const auto Usage : FindNamedRerouteUsages(DeclarationGuid))
+	{
+		if (Usage->GetLinkedDeclaration()->GetGuid() == DeclarationGuid)
+		{
+			Usage->UnregisterLinkedDeclaration();
+		}
+	}
+}
+
+void UFlowAsset::UpdateNamedRerouteUsages(UFlowNode* NewNode) const
+{
+	if (UFlowNode_NamedRerouteUsage* Usage = Cast<UFlowNode_NamedRerouteUsage>(NewNode))
+	{
+		for (const TPair<FGuid, UFlowNode*>& NodePair : GetNodes())
+		{
+			if (UFlowNode_NamedRerouteDeclaration* PotentialDeclaration = Cast<UFlowNode_NamedRerouteDeclaration>(NodePair.Value))
+			{
+				if (PotentialDeclaration->NodeTitle == Usage->NodeTitle)
+				{
+					Usage->RegisterLinkedDeclaration(PotentialDeclaration);
+				}
+			}
+		}
+	}
+}
+
 UFlowNode* UFlowAsset::CreateNode(const UClass* NodeClass, UEdGraphNode* GraphNode)
 {
 	UFlowNode* NewNode = NewObject<UFlowNode>(this, NodeClass, NAME_None, RF_Transactional);

@@ -75,7 +75,8 @@ public:
 	// UObject
 	virtual UWorld* GetWorld() const override;
 	// --
-
+	virtual void EditorNodeRefreshed();
+	virtual void ExecuteInputFinished(const FName& PinName);
 	// Dispatcher for ExecuteInput to ensure the AddOns get their ExecuteInput calls even if the node/addon
 	void ExecuteInputForSelfAndAddOns(const FName& PinName);
 

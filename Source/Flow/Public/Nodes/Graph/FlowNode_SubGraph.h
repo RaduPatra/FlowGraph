@@ -47,6 +47,7 @@ protected:
 	virtual void Cleanup() override;
 
 public:
+	void SetAsset(const TSoftObjectPtr<UFlowAsset>& FlowAsset);
 	virtual void ForceFinishNode() override;
 	UFlowAsset* GetAsset() const { return Asset.Get(); }
 	TSoftObjectPtr<UFlowAsset> GetSoftAsset() { return Asset; }

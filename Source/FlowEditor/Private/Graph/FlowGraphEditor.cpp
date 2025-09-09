@@ -994,33 +994,29 @@ bool SFlowGraphEditor::CanDuplicateNodes() const
 	return CanCopyNodes();
 }
 
-void SFlowGraphEditor::OnNodeDoubleClicked(class UEdGraphNode* Node) const
+void SFlowGraphEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 {
-
 	UFlowNodeBase* FlowNodeBase = Cast<UFlowGraphNode>(Node)->GetFlowNodeBase();
 	if (IsValid(FlowNodeBase))
 	{
-		UFlowNodeBase* FlowNodeBase = Cast<UFlowGraphNode>(Node)->GetFlowNodeBase();
-		if (IsValid(FlowNodeBase))
+		UFlowNode* FlowNode = Cast<UFlowNode>(FlowNodeBase);
+		// Handle double click actions for named reroute nodes
+		if (FlowNode)
 		{
-			UFlowNode* FlowNode = Cast<UFlowNode>(FlowNodeBase);
-			// Handle double click actions for named reroute nodes
-			if (FlowNode)
+			if (FlowNode->IsA<UFlowNode_NamedRerouteDeclaration>())
 			{
-				if (FlowNode->IsA<UFlowNode_NamedRerouteDeclaration>())
-				{
-					OnSelectNamedRerouteUsages();
-					return;
-				}
+				OnSelectNamedRerouteUsages();
+				return;
+			}
 
-				if (FlowNode->IsA<UFlowNode_NamedRerouteUsage>())
-				{
-					OnSelectNamedRerouteDeclaration();
-					return;
-				}
+			if (FlowNode->IsA<UFlowNode_NamedRerouteUsage>())
+			{
+				OnSelectNamedRerouteDeclaration();
+				return;
 			}
 		}
 	}
+	
 
 	if (const UFlowGraphNode* FlowGraphNode = Cast<UFlowGraphNode>(Node))
 	{
@@ -1503,7 +1499,7 @@ bool SFlowGraphEditor::CanJumpToNodeDefinition() const
 	return GetSelectedFlowNodes().Num() == 1;
 }
 
-void SFlowGraphEditor::OnSelectNamedRerouteDeclaration()
+void SFlowGraphEditor::OnSelectNamedRerouteDeclaration() 
 {
 	if (const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	SelectedNodes.Num() == 1)
@@ -1528,7 +1524,7 @@ void SFlowGraphEditor::OnSelectNamedRerouteDeclaration()
 	}
 }
 
-void SFlowGraphEditor::OnSelectNamedRerouteUsages()
+void SFlowGraphEditor::OnSelectNamedRerouteUsages() 
 {
 	if (const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes(); SelectedNodes.Num() == 1)
 	{
