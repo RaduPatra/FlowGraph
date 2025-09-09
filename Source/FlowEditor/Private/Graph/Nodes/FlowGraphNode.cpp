@@ -887,6 +887,8 @@ void UFlowGraphNode::OnNodeDoubleClicked() const
 				AssetToEdit = FlowNode->GetAssetToEdit();
 			}
 
+
+
 			if (!AssetPath.IsEmpty())
 			{
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetPath);

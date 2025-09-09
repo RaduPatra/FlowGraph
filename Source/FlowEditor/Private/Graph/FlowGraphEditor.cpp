@@ -996,10 +996,37 @@ bool SFlowGraphEditor::CanDuplicateNodes() const
 
 void SFlowGraphEditor::OnNodeDoubleClicked(class UEdGraphNode* Node) const
 {
+
+	UFlowNodeBase* FlowNodeBase = Cast<UFlowGraphNode>(Node)->GetFlowNodeBase();
+	if (IsValid(FlowNodeBase))
+	{
+		UFlowNodeBase* FlowNodeBase = Cast<UFlowGraphNode>(Node)->GetFlowNodeBase();
+		if (IsValid(FlowNodeBase))
+		{
+			UFlowNode* FlowNode = Cast<UFlowNode>(FlowNodeBase);
+			// Handle double click actions for named reroute nodes
+			if (FlowNode)
+			{
+				if (FlowNode->IsA<UFlowNode_NamedRerouteDeclaration>())
+				{
+					OnSelectNamedRerouteUsages();
+					return;
+				}
+
+				if (FlowNode->IsA<UFlowNode_NamedRerouteUsage>())
+				{
+					OnSelectNamedRerouteDeclaration();
+					return;
+				}
+			}
+		}
+	}
+
 	if (const UFlowGraphNode* FlowGraphNode = Cast<UFlowGraphNode>(Node))
 	{
 		FlowGraphNode->OnNodeDoubleClicked();
 	}
+
 }
 
 void SFlowGraphEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
